@@ -1,0 +1,7 @@
+datasets==4.2.0
+transformers==4.57.1
+tokenizers==0.22.1
+accelerate==1.13.0
+peft==0.18.1
+wandb==0.23.1
+rewarduq==0.1.0

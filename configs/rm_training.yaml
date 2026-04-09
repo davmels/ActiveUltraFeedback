@@ -1,0 +1,36 @@
+general:
+  base_model: allenai/Llama-3.1-Tulu-3-8B-SFT
+  seed: 42
+  torch_dtype: bfloat16
+
+lora:
+  r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  bias: none
+  task_type: SEQ_CLS
+  target_module_patterns: all-linear
+
+training:
+  train_batch_size: 8
+  eval_batch_size: 8
+  epochs: 2
+  grad_acc_steps: 2
+  logging_steps: 10
+  save_strategy: "steps"
+  save_steps: 1000
+  remove_unused_columns: false
+  max_length: 4096
+  report_to: wandb
+  max_steps: -1
+  bf16: true
+  lr_scheduler_type: constant
+  shuffle: False
+
+# as long robust hyperpameters good
+optimization:
+  optimizer: adamw_torch
+  learning_rate: 2e-5
+# our dataset, acheckpoints, how batches ordered. utlrafeedbackd ata firs tcheckpoint sand reward bench scores.
+lr_scheduling:
+  num_warmup_steps: 0

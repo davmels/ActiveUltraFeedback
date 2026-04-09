@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "activeuf"
+version = "0.1.0"
+description = "ActiveUltraFeedback: Efficient Preference Data Generation using Active Learning"
+authors = [
+    { name = "Davit Melikidze", email = "dmelikidze@ethz.ch" },
+    { name = "Marian Schneider", email = "smarian@ethz.ch" },
+    { name = "Jessica Lam", email = "jehong@ethz.ch" },
+    { name = "Martin Wertich", email = "mwertich@ethz.ch" },
+]
+readme = "README.md"
+requires-python = "==3.12.*"
+dependencies = [
+    "datasets==4.2.0",
+    "transformers==4.57.1",
+    "tokenizers==0.22.1",
+    "accelerate==1.13.0",
+    "peft==0.18.1",
+    "wandb==0.23.1",
+    "rewarduq==0.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff",
+    "pre-commit",
+]
+
+[tool.ruff]
+# Add "archive" and "resources" to the list of default exclusions
+extend-exclude = ["archive", "resources"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["activeuf"]
+

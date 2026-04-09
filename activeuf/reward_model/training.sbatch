@@ -1,0 +1,60 @@
+#!/bin/bash
+
+#SBATCH --job-name=rm_training
+#SBATCH -D .
+#SBATCH -A ${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH --output=./RM-Training/O-%x.%j
+#SBATCH --error=./RM-Training/E-%x.%j
+#SBATCH --nodes=2                   # number of nodes
+#SBATCH --ntasks-per-node=1         # number of MP tasks
+#SBATCH --gres=gpu:4                # number of GPUs per node
+#SBATCH --cpus-per-task=288         # number of cores per tasks
+#SBATCH --time=12:00:00             # maximum execution time (HH:MM:SS)
+#SBATCH --environment=activeuf_dev      # using compressed docker image as an environment
+
+export GPUS_PER_NODE=4
+export HF_HOME=${HF_HOME:-/path/to/hf_cache}
+export HF_TOKEN=$HF_TOKEN
+export WANDB_PROJECT="RM-Training"
+######################
+
+echo $ACCELERATE_DIR
+
+######################
+#### Set network #####
+######################
+head_node_ip=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
+######################
+
+export LAUNCHER="accelerate launch \
+    --config_file=configs/accelerate/deepspeed2.yaml \
+    --num_processes $((SLURM_NNODES * GPUS_PER_NODE)) \
+    --num_machines $SLURM_NNODES \
+    --rdzv_backend c10d \
+    --main_process_ip $head_node_ip \
+    --main_process_port 29500 \
+    "
+
+export ACCELERATE_DIR="${ACCELERATE_DIR:-/accelerate}"
+export PYTHON_FILE="activeuf/reward_model/training.py"
+export SCRIPT_ARGS=" \
+    --output_dir /path/to/models/combined_rm \
+    --reward_config configs/rm_training.yaml \
+    --dataset_path /path/to/datasets/combined_reordered \
+    --seed 42 \
+    "
+
+# This step is necessary because accelerate launch does not handle multiline arguments properly
+export CMD="$LAUNCHER $PYTHON_FILE $SCRIPT_ARGS" 
+
+START=$(date +%s)
+
+cd ${PROJECT_ROOT:-$(pwd)}/
+
+srun $CMD
+
+END=$(date +%s)
+DURATION=$(( END - START ))
+
+echo "Job ended at: $(date)"
+echo "Total execution time: $DURATION seconds"

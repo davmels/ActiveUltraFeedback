@@ -1,0 +1,11 @@
+[submodule "resources/reward-bench"]
+	path = resources/reward-bench
+	url = https://github.com/allenai/reward-bench.git
+	ignore = all
+[submodule "resources/olmes"]
+	path = resources/olmes
+	url = https://github.com/swiss-ai/olmes.git
+	ignore = all
+[submodule "resources/alpaca_eval"]
+	path = resources/alpaca_eval
+	url = https://github.com/tatsu-lab/alpaca_eval.git
