@@ -5,8 +5,7 @@ from activeuf.acquisition_function.base import BaseAcquisitionFunction
 
 class MaxMinLCB(BaseAcquisitionFunction):
     """
-    Placeholder for MaxMinLCB acquisition function.
-    This class is not implemented yet.
+    MaxMinLCB acquisition function.
 
     The functions defined in the class assume upper and lower bounds are symmetric.
     """
@@ -37,7 +36,8 @@ class MaxMinLCB(BaseAcquisitionFunction):
         rewards: torch.Tensor,
         lower_bounds: torch.Tensor,
         upper_bounds: torch.Tensor,
-    ) -> list[list[int, int]]:
+        K: int = None,
+    ) -> list[list[int, int]] | tuple[list[int], list[list[int, int]]]:
         """
         Args:
             rewards: tensor of shape (n_prompts, n_completions_per_prompt)
@@ -46,39 +46,43 @@ class MaxMinLCB(BaseAcquisitionFunction):
                 containing the lower bounds for each completion
             upper_bounds: tensor of shape (n_prompts, n_completions_per_prompt)
                 containing the upper bounds for each completion
+            K: if set, select K prompts with lowest MaxMinLCB scores
+                (MinMaxMinLCB — most uncertain prompts)
         Returns:
             list[list[int, int]]: The selected indices per prompt.
-                The first index is the one that should be chosen, the second
-                one is the one that should be rejected.
         """
         std_deviation = (upper_bounds - lower_bounds) / 2
+        n_prompts = len(rewards)
 
-        selected_ids_batch = []
-        for i in range(len(rewards)):
-            # Shape: (n_completions_per_prompt,)
+        # Compute arms and scores for all prompts in one pass
+        all_arms = []
+        all_scores = []
+        for i in range(n_prompts):
             rewards_i = rewards[i].cpu().numpy()
-            # Shape: (n_completions_per_prompt,)
             std_i = std_deviation[i].cpu().numpy()
 
-            # Create pairwise difference matrix: rewards[i] - rewards[j]
-            # Shape: (n_completions, n_completions)
             reward_diff_matrix = rewards_i[:, None] - rewards_i[None, :]
-
-            # Create pairwise uncertainty matrix: std[i] + std[j]
-            # Shape: (n_completions, n_completions)
             uncertainty_matrix = std_i[:, None] + std_i[None, :]
 
-            arm_i, arm_j = self._max_min_lcb(
+            arm_i, arm_j, score = self._max_min_lcb(
                 torch.tensor(reward_diff_matrix, dtype=torch.float32),
                 torch.tensor(uncertainty_matrix, dtype=torch.float32),
             )
-            selected_ids_batch.append((int(arm_i), int(arm_j)))
+            all_arms.append((int(arm_i), int(arm_j)))
+            all_scores.append(score)
 
-        return selected_ids_batch
+        # Prompt selection: MinMaxMinLCB — pick K prompts with LOWEST scores
+        if K is not None and K < n_prompts:
+            prompt_scores = torch.tensor(all_scores)
+            selected_prompt_indices = prompt_scores.topk(K, largest=False).indices.sort().values.tolist()
+            selected_arms = [all_arms[i] for i in selected_prompt_indices]
+            return selected_prompt_indices, selected_arms
+
+        return all_arms
 
     def _max_min_lcb(
         self, posterior_mean: torch.Tensor, posterior_var: torch.Tensor
-    ) -> tuple[int, int]:
+    ) -> tuple[int, int, float]:
         """
         Computes the max-min LCB acquisition function.
 
@@ -89,7 +93,7 @@ class MaxMinLCB(BaseAcquisitionFunction):
                 containing the posterior variances for each completion pair
 
         Returns:
-            tuple: Indices of the arms to select.
+            tuple: (arm_i, arm_j, maxmin_lcb_score)
         """
         lcb = posterior_mean - self.beta * posterior_var  # Shape: (n_arms, n_arms)
         n = lcb.shape[0]
@@ -167,6 +171,7 @@ class MaxMinLCB(BaseAcquisitionFunction):
         argmin_j = torch.argmax(argmin_j_set, dim=1)
 
         maxmin_lcb = nanmax_0d(min_j)  # Shape: ()
+        score = maxmin_lcb.item()
 
         def choose_next_arms():
             # Create random values for tie-breaking in argmax
@@ -184,6 +189,7 @@ class MaxMinLCB(BaseAcquisitionFunction):
         # Replace jax.lax.cond with regular conditional
         if torch.sum(candidate_arms_mask) == 1:
             single_candidate = torch.argmax(candidate_arms_mask.float())
-            return single_candidate, single_candidate
+            return single_candidate, single_candidate, score
         else:
-            return choose_next_arms()
+            arm_i, arm_j = choose_next_arms()
+            return arm_i, arm_j, score

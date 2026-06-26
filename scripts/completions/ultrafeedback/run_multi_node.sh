@@ -1,7 +1,7 @@
 #!/bin/bash
 
-CACHE_DIR="${CACHE_DIR:-/tmp/cache}"
-DATASETS_DIR="${DATA_DIR:-/path/to/datasets}"
+CACHE_DIR="$SCRATCH/cache"
+DATASETS_DIR="$SCRATCH/datasets"
 
 # Run configs: 
 # Format: MODEL:NODES:CHUNK_INDEX:NUM_CHUNKS:SEED:CONCURRENCY:MAX_MODEL_LEN
@@ -61,7 +61,7 @@ for config in "${CONFIGS[@]}"; do
     sbatch <<EOF
 #!/bin/bash
 # shellcheck disable=SC2206
-#SBATCH --account=${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH --account=a-infra01-1
 #SBATCH --exclusive
 #SBATCH --cpus-per-task=288
 #SBATCH --nodes=$NODES

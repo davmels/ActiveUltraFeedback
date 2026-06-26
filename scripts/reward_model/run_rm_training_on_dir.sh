@@ -5,7 +5,7 @@
 # ==============================================================================
 
 # --- FIXED CONFIGURATION ---
-FIXED_CONFIG_PATH="configs/rm_training.yaml"
+FIXED_CONFIG_PATH="$SCRATCH/ActiveUltraFeedback/configs/rm_training.yaml"
 
 # Initialize variables
 DATASET_INPUT_PATH=""
@@ -148,7 +148,7 @@ for dataset_full_path in "${DATASET_LIST[@]}"; do
 #!/bin/bash
 #SBATCH --job-name=${slurm_job_name}
 #SBATCH -D .
-#SBATCH -A ${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH -A a-infra01-1
 #SBATCH --output=logs/rmsample/O-%x.%j
 #SBATCH --error=logs/rmsample/E-%x.%j
 #SBATCH --nodes=2
@@ -161,7 +161,7 @@ for dataset_full_path in "${DATASET_LIST[@]}"; do
 
 # --- Env Setup ---
 export GPUS_PER_NODE=4
-export HF_HOME=\${HF_HOME:-/path/to/hf_cache}
+export HF_HOME=\$SCRATCH/huggingface
 export WANDB_PROJECT="RM-Training"
 
 # Ensure logs dir exists
@@ -171,7 +171,7 @@ mkdir -p logs/rm
 head_node_ip=\$(scontrol show hostnames \$SLURM_JOB_NODELIST | head -n 1)
 
 # --- Paths ---
-REPO_ROOT="\${PROJECT_ROOT:-$(pwd)}"
+REPO_ROOT="\$SCRATCH/ActiveUltraFeedback"
 ACCELERATE_CONFIG="\$REPO_ROOT/configs/accelerate/deepspeed2.yaml"
 PYTHON_SCRIPT="\$REPO_ROOT/activeuf/reward_model/training.py"
 

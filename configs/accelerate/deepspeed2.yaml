@@ -8,9 +8,9 @@ deepspeed_config:
   zero_stage: 2
 distributed_type: DEEPSPEED
 main_training_function: main
-mixed_precision: 'bf16'
-# rdzv_backend: static
+mixed_precision: "bf16"
 same_network: true
+rdzv_backend: static
 use_cpu: false
 tpu_env: []
 tpu_use_cluster: false

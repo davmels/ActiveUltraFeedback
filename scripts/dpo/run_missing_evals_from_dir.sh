@@ -4,6 +4,7 @@
 # 1. Global Cache Configuration
 # ==============================================================================
 export GPUS_PER_NODE="${GPUS_PER_NODE:-4}"
+export WANDB_MODE="disabled"
 
 # Redirect caches to SCRATCH
 export XDG_CACHE_HOME="${SCRATCH}/cache"
@@ -87,7 +88,7 @@ launch_model_eval() {
     # Submit Evaluation job
     echo "    Submitting evaluation job..."
     sbatch --job-name="${run_id}_${benchmark}" \
-           --account="${SLURM_ACCOUNT:-your-slurm-account}" \
+           --account="a-infra01-1" \
            --output="${model_dir}/results/${benchmark}/eval_%j.log" \
            --nodes=1 \
            --ntasks=1 \
@@ -107,15 +108,15 @@ launch_model_eval() {
             export PYTHONUSERBASE="${SCRATCH}/cache/python_user_base"
 
             export VLLM_WORKER_MULTIPROC_METHOD=spawn
-            export PROJECT_ROOT_AT=${PROJECTS_DIR:-/path/to/projects}/ActiveUltraFeedback/resources/olmes
+            export PROJECT_ROOT_AT=$SCRATCH/ActiveUltraFeedback/resources/olmes
             export PROJECT_NAME=olmes
             export PACKAGE_NAME=oe_eval
             export SLURM_ONE_ENTRYPOINT_SCRIPT_PER_NODE=1
             export SKIP_INSTALL_PROJECT=1
-            export SHARED=${SHARED_DIR:-/path/to/shared/artifacts}
+            export SHARED=/iopsstor/scratch/cscs/smoalla/projects/swiss-alignment/artifacts/shared
             export OMP_NUM_THREADS=1
             export TOKENIZERS_PARALLELISM=false
-            export CONTAINER_IMAGES=${CONTAINER_IMAGES:-/path/to/container-images}
+            export CONTAINER_IMAGES=/capstor/store/cscs/swissai/infra01/container-images
             unset SSL_CERT_FILE
             export VLLM_DISABLE_COMPILE_CACHE=1
             
@@ -125,7 +126,7 @@ launch_model_eval() {
               --container-mounts=\
 \$PROJECT_ROOT_AT,\
 ${SCRATCH},\
-${DPR_DIR:-/path/to/dpr},\
+/iopsstor/scratch/cscs/smoalla/projects/dpr/,\
 \$SHARED,\
 \$HOME/.gitconfig,\
 \$HOME/.bashrc,\
@@ -167,7 +168,7 @@ launch_alpaca_eval() {
     
     echo "    Submitting Alpaca Eval job..."
     sbatch --job-name="${run_id}_alpaca_eval" \
-           --account="${SLURM_ACCOUNT:-your-slurm-account}" \
+           --account="a-infra01-1" \
            --output="${results_dir}_log/log_%j.out" \
            --error="${results_dir}_log/log_%j.err" \
            --nodes=1 \

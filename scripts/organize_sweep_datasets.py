@@ -34,8 +34,8 @@ def organize_datasets(
     
     Args:
         sweep_id: wandb sweep ID (e.g., "3e7zl14s")
-        loop_base_dir: Base directory containing sweep datasets (e.g., "/path/to/datasets/loop/3e7zl14s")
-        output_base_dir: Output directory (e.g., "/path/to/datasets/skywork/actives")
+        loop_base_dir: Base directory containing sweep datasets (e.g., "$SCRATCH/ActiveUltraFeedback/datasets/loop/3e7zl14s")
+        output_base_dir: Output directory (e.g., "$SCRATCH/ActiveUltraFeedback/datasets/skywork/actives")
         model_type: "dpo" or "rm"
         entity: wandb entity
         project: wandb project
@@ -145,14 +145,14 @@ def main():
         "--loop_base_dir",
         type=str,
         required=True,
-        help="Base directory containing sweep run datasets (e.g., '/path/to/datasets/loop/3e7zl14s')"
+        help="Base directory containing sweep run datasets (e.g., '$SCRATCH/ActiveUltraFeedback/datasets/loop/3e7zl14s')"
     )
     
     parser.add_argument(
         "--output_base_dir",
         type=str,
         required=True,
-        help="Output base directory (e.g., '/path/to/datasets/skywork/actives')"
+        help="Output base directory (e.g., '$SCRATCH/ActiveUltraFeedback/datasets/skywork/actives')"
     )
     
     parser.add_argument(

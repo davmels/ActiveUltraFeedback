@@ -140,6 +140,7 @@ for model_full_path in "${MODELS_TO_RUN[@]}"; do
     fi
 
     # C. Check if Completed (Output Exists)
+    # TODO: Adjust "metrics.json" to whatever your reward_bench_2.sh outputs!
     if [ -f "$model_full_path/metrics.json" ]; then 
         echo "  [SKIP] Results already exist in model dir."
         continue
@@ -165,7 +166,7 @@ for model_full_path in "${MODELS_TO_RUN[@]}"; do
 #SBATCH --cpus-per-task=16
 #SBATCH --time=02:00:00
 #SBATCH --environment=activeuf_dev
-#SBATCH --account=${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH --account=a-infra01-1
 #SBATCH --exclude=nid[006845,006851,006854-006855,006752,006755,006787-006788,007095-007096,007098-007099,006824,006826,006845,006851,006854-006855,006752,006755,006787-006788,007095-007096,007098-007099,006708,006789-006791,007096,007098-007099,007104,006869,006875,007171,007173-007174,007182,007184,007201,007203,007189-007190,007234-007235,007087]
 
 # Echo info for logs

@@ -15,20 +15,29 @@ class DoubleReverseThompsonSampling(BaseAcquisitionFunction):
         rewards: torch.Tensor,
         lower_bounds: torch.Tensor,
         upper_bounds: torch.Tensor,
-    ) -> list[list[int, int]]:
+        K: int = None,
+    ) -> list[list[int, int]] | tuple[list[int], list[list[int, int]]]:
         """
         Args:
             rewards: tensor of shape (n_prompts, n_completions_per_prompt)
-                containing the reward scores for each completion
-            std_deviation: tensor of shape (n_prompts, n_completions_per_prompt)
-                containing the standard deviation of the reward for each completions
-        Returns:
-            list[list[int, int]]: The selected indices per prompt.
-                The order for these is arbitrary and needs to be determined
-                using an oracle.
+            lower_bounds: tensor of shape (n_prompts, n_completions_per_prompt)
+            upper_bounds: tensor of shape (n_prompts, n_completions_per_prompt)
+            K: if set, select K prompts with largest sampled reward spread
         """
         # even if upper and lower bounds are not symmetric, our current implementation is such, that we can assume they are symmetric.
         std_deviation = (upper_bounds - lower_bounds) / 2
+
+        # Prompt selection: sample from posterior, score by max - min
+        if K is not None and K < len(rewards):
+            z = torch.from_numpy(np.random.uniform(-1, 1, size=rewards.shape)).float()
+            sampled_rewards = rewards + self.beta * z * std_deviation
+            prompt_scores = sampled_rewards.max(dim=1).values - sampled_rewards.min(dim=1).values
+            selected_prompt_indices = prompt_scores.topk(K).indices.sort().values.tolist()
+
+            rewards = rewards[selected_prompt_indices]
+            std_deviation = std_deviation[selected_prompt_indices]
+        else:
+            selected_prompt_indices = None
 
         selected_ids_batch = []
         for i in range(len(rewards)):
@@ -47,6 +56,8 @@ class DoubleReverseThompsonSampling(BaseAcquisitionFunction):
 
             selected_ids_batch.append((response_1, response_2))
 
+        if selected_prompt_indices is not None:
+            return selected_prompt_indices, selected_ids_batch
         return selected_ids_batch
 
     def dts_optimize(self, reward_list, std_deviation_list):

@@ -1,32 +1,19 @@
-seed: 42
-torch_dtype: bfloat16
-
-model_path: allenai/Llama-3.1-Tulu-3-8B-SFT
-base_run_name: tulu8bsft-normed-preference_ultrafeedback_llama
-base_output_dir: /path/to/models/dpo/
-
-lora:
-  r: 64
-  lora_alpha: 16
-  lora_dropout: 0.1
-  bias: none
-  task_type: CAUSAL_LM
+model_path: /iopsstor/scratch/cscs/dmelikidze/huggingface/hub/models--allenai--Olmo-3-7B-Instruct-SFT/snapshots/e1452fc572d51966ff4aaeb25118b891eb93e549
 
 training:
   gradient_checkpointing: true
-  gradient_checkpointing_kwargs:
-    use_reentrant: false
-  max_length: 2048
-  per_device_train_batch_size: 4
-  gradient_accumulation_steps: 1
-  learning_rate: 2.0e-5
+  max_length: 4096
+  per_device_train_batch_size: 2   # 2 x gas 2 x (8 nodes x 4 GPUs = 32) = 128 effective, matching
+                                   #   the loop. NOTE: tied to 8 nodes; for 4 nodes set this back to 4.
+  gradient_accumulation_steps: 2
+  learning_rate: 1.0e-6
   lr_scheduler_type: linear
   warmup_ratio: 0.1
-  num_train_epochs: 3
-  report_to: "wandb"
+  num_train_epochs: 1
+  dataset_num_proc: 32              # parallelize the trainer's tokenization (TRL tokenize_row map)
+  report_to: wandb
   logging_steps: 1
-  beta: 0.1
+  beta: 0.05
   save_steps: 1000
-  normalize_logps: false
   bf16: true
   bf16_full_eval: true

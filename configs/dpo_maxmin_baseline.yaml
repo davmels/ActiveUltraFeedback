@@ -1,0 +1,29 @@
+# Standard-DPO baseline on the MaxMin dataset, hyperparameters matched to the
+# Active-DPO loop (configs/loop_dpo.yaml). Consumed by activeuf.dpo.training.
+model_path: /iopsstor/scratch/cscs/dmelikidze/huggingface/hub/models--allenai--Olmo-3-7B-Instruct-SFT/snapshots/e1452fc572d51966ff4aaeb25118b891eb93e549
+
+training:
+  # output_dir / run_name are set per-run (jobid + timestamp) by train_maxmin.sbatch
+  seed: 4
+
+  # --- DPO objective (matches the loop) ---
+  beta: 5.0
+  normalize_logps: true             # length normalization, as in the loop
+  max_length: 4096
+
+  # --- optimization (matches the loop on 8 nodes: 4 x 1 x 32 = global batch 128) ---
+  per_device_train_batch_size: 4
+  gradient_accumulation_steps: 1
+  learning_rate: 1.0e-6
+  lr_scheduler_type: linear
+  warmup_ratio: 0.1
+  num_train_epochs: 1
+  gradient_checkpointing: true
+  bf16: true
+  bf16_full_eval: true
+
+  # --- logging / checkpointing ---
+  logging_steps: 1
+  save_strategy: steps
+  save_steps: 25                    # match the loop's cadence (note: heavy on disk)
+  report_to: wandb

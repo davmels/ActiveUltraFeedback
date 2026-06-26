@@ -112,6 +112,8 @@ class RandomOracle(BaseOracle):
                     "rejected": x[f"response_text_{rejected_int}"],
                     "rejected_model": x[f"model_{rejected_int}"],
                     "rejected_score": x[f"overall_score_{rejected_int}"],
+                    "oracle_score_first": x[f"overall_score_1"],
+                    "oracle_score_second": x[f"overall_score_2"],
                 }
             )
         return out
@@ -206,6 +208,8 @@ class UltraFeedbackOracle(BaseOracle):
                     "input_ids_rejected": x.get(f"input_ids_{rejected_int}"),
                     "attention_mask_rejected": x.get(f"attention_mask_{rejected_int}"),
                     "features_rejected": x.get(f"features_{rejected_int}"),
+                    "oracle_score_first": self.parse_score_str(x["score_1"]),
+                    "oracle_score_second": self.parse_score_str(x["score_2"]),
                 }
             )
         return out

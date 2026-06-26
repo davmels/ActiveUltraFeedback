@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=tulu_run
-#SBATCH --account=${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH --account=a-infra01-1
 #SBATCH --partition=normal
 #SBATCH --nodes=4
 #SBATCH --time=12:00:00
@@ -60,7 +60,7 @@ HEAD_PROCESS_PORT=$((29500 + SLURM_JOB_ID % 1000))
 # ==========================================
 # ===== ENVIRONMENT SETUP ==================
 # ==========================================
-export WANDB_ENTITY=${WANDB_ENTITY:-ActiveUF}
+export WANDB_ENTITY=ActiveUF
 export WANDB_PROJECT=loop
 export LOOP_CONFIG="./configs/loop.yaml"
 export ACCELERATE_CONFIG="./configs/accelerate/multi_node.yaml"

@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DPO at 20k prompts: method comparison</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-color: #f3f4f6;
+  --card-bg: #ffffff;
+  --text-main: #111827;
+  --text-muted: #6b7280;
+  --border-color: #e5e7eb;
+  --row-hover: #f9fafb;
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --best-bg: #dcfce7;
+  --best-text: #166534;
+  --header-bg: #f8fafc;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg-color);
+  color: var(--text-main);
+  padding: 40px 5%;
+  max-width: 1800px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+.header-container {
+  margin-bottom: 24px;
+}
+
+.title-area h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 6px; color: #111827; }
+.title-area .subtitle { color: var(--text-muted); font-size: 14px; font-weight: 500; }
+
+.controls { display: flex; gap: 12px; margin-top: 16px; align-items: center; }
+.controls button {
+  background: var(--card-bg);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.controls button:hover { background: var(--row-hover); border-color: #d1d5db; }
+.controls button.primary { background: var(--primary); color: white; border-color: var(--primary); }
+.controls button.primary:hover { background: var(--primary-hover); }
+
+.toggle-group {
+  display: flex;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.toggle-group button {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  border-right: 1px solid var(--border-color);
+}
+.toggle-group button:last-child { border-right: none; }
+.toggle-group button.active {
+  background: var(--primary);
+  color: white;
+}
+
+.table-box {
+  --col-template: 280px repeat(9, minmax(0, 1fr));
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+}
+
+.grid-row {
+  display: grid;
+  grid-template-columns: var(--col-template);
+  align-items: stretch;
+}
+
+.header-row {
+  background: var(--header-bg);
+  border-bottom: 2px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.header-row .cell {
+  padding: 16px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border-left: 1px solid var(--border-color);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.header-row .cell:first-child { justify-content: flex-start; border-left: none; }
+
+.section { border-bottom: 1px solid var(--border-color); }
+.section:last-child { border-bottom: none; }
+
+.empty-group { background: #f5f7fa; }
+.empty-group .cell {
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid var(--border-color);
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-muted);
+}
+.empty-group .cell:first-child {
+  justify-content: flex-start;
+  border-left: none;
+  font-family: 'Inter', sans-serif;
+  color: var(--text-main);
+}
+
+details { margin: 0; padding: 0; width: 100%; }
+
+summary {
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  list-style: none;
+  background: #eef2f7;
+  transition: background 0.15s ease;
+  width: 100%;
+}
+summary::-webkit-details-marker { display: none; }
+summary::marker { display: none; content: ""; }
+summary:hover { background: #e2e8f0; }
+
+details[open] summary { border-bottom: 1px solid var(--border-color); background: #e2e8f0; }
+
+summary .cell {
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid var(--border-color);
+  font-family: 'JetBrains Mono', monospace;
+}
+summary .cell:first-child {
+  justify-content: flex-start;
+  border-left: none;
+  font-family: 'Inter', sans-serif;
+}
+
+summary .arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-right: 10px;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+summary:hover .arrow { background: #e2e8f0; }
+details[open] .arrow { transform: rotate(90deg); }
+
+.bench-rows { background: #ffffff; margin: 0; padding: 0; width: 100%; }
+.bench-row {
+  display: grid;
+  grid-template-columns: var(--col-template);
+  align-items: stretch;
+  border-bottom: 1px solid var(--border-color);
+  transition: background 0.15s;
+}
+.bench-row:last-child { border-bottom: none; }
+.bench-row:hover { background: var(--card-bg); }
+
+.bench-row .cell {
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.bench-row .cell:first-child {
+  justify-content: flex-start;
+  padding-left: 46px;
+  color: var(--text-muted);
+  border-left: none;
+  font-family: 'Inter', sans-serif;
+}
+
+.overall {
+  background: var(--header-bg);
+  border-top: 3px solid var(--border-color);
+}
+.overall .cell {
+  padding: 18px 16px;
+  font-size: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid var(--border-color);
+  font-family: 'JetBrains Mono', monospace;
+}
+.overall .cell:first-child { justify-content: flex-start; border-left: none; font-family: 'Inter', sans-serif; text-transform: uppercase; color: var(--text-main); font-weight: 600; }
+
+.info-row {
+  background: var(--card-bg);
+  border-top: 1px solid var(--border-color);
+}
+.info-row .cell {
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.info-row .cell:first-child { justify-content: flex-start; border-left: none; font-family: 'Inter', sans-serif; color: var(--text-main); font-weight: 500; }
+
+.na { color: #9ca3af; font-style: italic; }
+.best-badge {
+  background: var(--best-bg);
+  color: var(--best-text);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 400;
+  display: inline-block;
+  min-width: 45px;
+  box-shadow: inset 0 0 0 1px rgba(22, 101, 52, 0.2);
+}
+
+</style>
+</head>
+<body>
+
+<div class="header-container">
+  <div class="title-area">
+    <h1>DPO at 20k prompts: method comparison</h1>
+    <p class="subtitle">9 models &middot; 6 benchmarks</p>
+  </div>
+  <div class="controls">
+    
+    <div class="toggle-group">
+      <button id="btn-all" class="active">All</button>
+      <button id="btn-sft">SFT</button>
+      <button id="btn-instruct">Instruct</button>
+    </div>
+    <button id="btn-apertus" class="active">Apertus</button>
+    <button id="btn-olmo" class="active">OLMo</button>
+    <div class="toggle-group"><button id="btn-collapse">Collapse</button><button id="btn-expand">Expand</button></div>
+  </div>
+</div>
+
+<div id="wrap-all">
+<div class="table-box" id="table-all">
+  <div class="grid-row header-row">
+    <div class="cell">Category / Benchmark</div>
+    <div class="cell" data-col="1">Apertus 1.0 8B SFT</div>
+    <div class="cell" data-col="2">Apertus 1.0 8B Instruct</div>
+    <div class="cell" data-col="3">Apertus 1.5 8B SFT</div>
+    <div class="cell" data-col="4">K256</div>
+    <div class="cell" data-col="5">K256 L1024 quota</div>
+    <div class="cell" data-col="6">K256 L4096 quota</div>
+    <div class="cell" data-col="7">OLMo 3 7B SFT</div>
+    <div class="cell" data-col="8">OLMo 3 7B DPO</div>
+    <div class="cell" data-col="9">OLMo 3 7B Instruct</div>
+  </div>
+  <div class="section"><details>
+  <summary class="grid-row score-row">
+    <div class="cell"><span class="arrow">&#9654;</span>All</div>
+    <div class="cell" data-col="1" data-val="44.0">44.0</div>
+    <div class="cell" data-col="2" data-val="48.6">48.6</div>
+    <div class="cell" data-col="3" data-val="50.7">50.7</div>
+    <div class="cell" data-col="4" data-val="68.2">68.2</div>
+    <div class="cell" data-col="5" data-val="68.0">68.0</div>
+    <div class="cell" data-col="6" data-val="68.5">68.5</div>
+    <div class="cell" data-col="7" data-val="63.9">63.9</div>
+    <div class="cell" data-col="8" data-val="67.8">67.8</div>
+    <div class="cell" data-col="9" data-val="68.8">68.8</div>
+  </summary>
+  <div class="bench-rows">
+    <div class="bench-row score-row">
+      <div class="cell">gsm8k_cot</div>
+      <div class="cell" data-col="1" data-val="56.6">56.6</div>
+      <div class="cell" data-col="2" data-val="62.6">62.6</div>
+      <div class="cell" data-col="3" data-val="64.5">64.5</div>
+      <div class="cell" data-col="4" data-val="76.7">76.7</div>
+      <div class="cell" data-col="5" data-val="78.5">78.5</div>
+      <div class="cell" data-col="6" data-val="76.2">76.2</div>
+      <div class="cell" data-col="7" data-val="75.7">75.7</div>
+      <div class="cell" data-col="8" data-val="80.0">80.0</div>
+      <div class="cell" data-col="9" data-val="83.4">83.4</div>
+    </div>
+    <div class="bench-row score-row">
+      <div class="cell">gpqa_main_cot_zeroshot</div>
+      <div class="cell" data-col="1" data-val="25.0">25.0</div>
+      <div class="cell" data-col="2" data-val="23.9">23.9</div>
+      <div class="cell" data-col="3" data-val="26.8">26.8</div>
+      <div class="cell" data-col="4" data-val="33.5">33.5</div>
+      <div class="cell" data-col="5" data-val="30.4">30.4</div>
+      <div class="cell" data-col="6" data-val="35.9">35.9</div>
+      <div class="cell" data-col="7" data-val="30.8">30.8</div>
+      <div class="cell" data-col="8" data-val="32.6">32.6</div>
+      <div class="cell" data-col="9" data-val="34.4">34.4</div>
+    </div>
+    <div class="bench-row score-row">
+      <div class="cell">humaneval_instruct</div>
+      <div class="cell" data-col="1" data-val="65.0">65.0</div>
+      <div class="cell" data-col="2" data-val="69.2">69.2</div>
+      <div class="cell" data-col="3" data-val="79.3">79.3</div>
+      <div class="cell" data-col="4" data-val="94.0">94.0</div>
+      <div class="cell" data-col="5" data-val="95.6">95.6</div>
+      <div class="cell" data-col="6" data-val="94.4">94.4</div>
+      <div class="cell" data-col="7" data-val="92.8">92.8</div>
+      <div class="cell" data-col="8" data-val="93.4">93.4</div>
+      <div class="cell" data-col="9" data-val="96.5">96.5</div>
+    </div>
+    <div class="bench-row score-row">
+      <div class="cell">bbh</div>
+      <div class="cell" data-col="1" data-val="54.1">54.1</div>
+      <div class="cell" data-col="2" data-val="55.0">55.0</div>
+      <div class="cell" data-col="3" data-val="54.6">54.6</div>
+      <div class="cell" data-col="4" data-val="70.6">70.6</div>
+      <div class="cell" data-col="5" data-val="71.3">71.3</div>
+      <div class="cell" data-col="6" data-val="70.4">70.4</div>
+      <div class="cell" data-col="7" data-val="68.1">68.1</div>
+      <div class="cell" data-col="8" data-val="60.8">60.8</div>
+      <div class="cell" data-col="9" data-val="57.4">57.4</div>
+    </div>
+    <div class="bench-row score-row">
+      <div class="cell">ifeval</div>
+      <div class="cell" data-col="1" data-val="60.1">60.1</div>
+      <div class="cell" data-col="2" data-val="68.4">68.4</div>
+      <div class="cell" data-col="3" data-val="71.7">71.7</div>
+      <div class="cell" data-col="4" data-val="81.9">81.9</div>
+      <div class="cell" data-col="5" data-val="80.4">80.4</div>
+      <div class="cell" data-col="6" data-val="81.7">81.7</div>
+      <div class="cell" data-col="7" data-val="81.3">81.3</div>
+      <div class="cell" data-col="8" data-val="81.5">81.5</div>
+      <div class="cell" data-col="9" data-val="86.0">86.0</div>
+    </div>
+    <div class="bench-row score-row">
+      <div class="cell">alpaca_eval</div>
+      <div class="cell" data-col="1" data-val="3.0">3.0</div>
+      <div class="cell" data-col="2" data-val="12.3">12.3</div>
+      <div class="cell" data-col="3" data-val="7.3">7.3</div>
+      <div class="cell" data-col="4" data-val="52.7">52.7</div>
+      <div class="cell" data-col="5" data-val="52.2">52.2</div>
+      <div class="cell" data-col="6" data-val="52.6">52.6</div>
+      <div class="cell" data-col="7" data-val="34.7">34.7</div>
+      <div class="cell" data-col="8" data-val="58.6">58.6</div>
+      <div class="cell" data-col="9" data-val="54.9">54.9</div>
+    </div>
+  </div>
+  </details></div>
+  <div class="grid-row overall score-row">
+    <div class="cell">Overall Average</div>
+    <div class="cell" data-col="1" data-val="44.0">44.0</div>
+    <div class="cell" data-col="2" data-val="48.6">48.6</div>
+    <div class="cell" data-col="3" data-val="50.7">50.7</div>
+    <div class="cell" data-col="4" data-val="68.2">68.2</div>
+    <div class="cell" data-col="5" data-val="68.0">68.0</div>
+    <div class="cell" data-col="6" data-val="68.5">68.5</div>
+    <div class="cell" data-col="7" data-val="63.9">63.9</div>
+    <div class="cell" data-col="8" data-val="67.8">67.8</div>
+    <div class="cell" data-col="9" data-val="68.8">68.8</div>
+  </div>
+</div>
+</div>
+
+<script>
+  var noSplit = true;
+  var wrapTrain = document.getElementById('wrap-train');
+  var wrapTest = document.getElementById('wrap-test');
+  var wrapAll = document.getElementById('wrap-all');
+  var btnTrain = document.getElementById('btn-train');
+  var btnTest = document.getElementById('btn-test');
+  var btnOlmo = document.getElementById('btn-olmo');
+  var btnApertus = document.getElementById('btn-apertus');
+  var modelTypes = ["sft","instruct","sft","instruct","instruct","instruct","sft","instruct","instruct"];
+  var isOlmo = [false,false,false,false,false,false,true,true,true];
+  var isApertusBaseline = [true,true,true,false,false,false,false,false,false];
+  var nModels = modelTypes.length;
+  var currentTypeFilter = 'all';
+  var showOlmo = true;
+  var showApertus = true;
+
+  if (!noSplit) {
+    btnTrain.addEventListener('click', function() {
+      wrapTrain.style.display = '';
+      wrapTest.style.display = 'none';
+      btnTrain.classList.add('active');
+      btnTest.classList.remove('active');
+    });
+    btnTest.addEventListener('click', function() {
+      wrapTrain.style.display = 'none';
+      wrapTest.style.display = '';
+      btnTest.classList.add('active');
+      btnTrain.classList.remove('active');
+    });
+  }
+
+  var btnExpand = document.getElementById('btn-expand');
+  var btnCollapse = document.getElementById('btn-collapse');
+  if (btnExpand) {
+    btnExpand.addEventListener('click', function() {
+      var target = noSplit ? wrapAll : (wrapTrain.style.display !== 'none' ? wrapTrain : wrapTest);
+      target.querySelectorAll('details').forEach(function(d) { d.open = true; });
+    });
+  }
+  if (btnCollapse) {
+    btnCollapse.addEventListener('click', function() {
+      var target = noSplit ? wrapAll : (wrapTrain.style.display !== 'none' ? wrapTrain : wrapTest);
+      target.querySelectorAll('details').forEach(function(d) { d.open = false; });
+    });
+  }
+
+  btnOlmo.addEventListener('click', function() {
+    showOlmo = !showOlmo;
+    btnOlmo.classList.toggle('active', showOlmo);
+    applyFilters();
+  });
+
+  btnApertus.addEventListener('click', function() {
+    showApertus = !showApertus;
+    btnApertus.classList.toggle('active', showApertus);
+    applyFilters();
+  });
+
+  function applyFilters() {
+    var visibleCols = [];
+    for (var i = 0; i < nModels; i++) {
+      var typeMatch = (currentTypeFilter === 'all' || modelTypes[i] === currentTypeFilter);
+      var olmoMatch = (showOlmo || !isOlmo[i]);
+      var apertusMatch = (showApertus || !isApertusBaseline[i]);
+      if (typeMatch && olmoMatch && apertusMatch) visibleCols.push(i + 1);
+    }
+
+    var template = '280px repeat(' + visibleCols.length + ', minmax(0, 1fr))';
+    document.querySelectorAll('.table-box').forEach(function(box) {
+      box.style.setProperty('--col-template', template);
+    });
+
+    document.querySelectorAll('[data-col]').forEach(function(cell) {
+      var col = parseInt(cell.getAttribute('data-col'));
+      cell.style.display = visibleCols.indexOf(col) !== -1 ? '' : 'none';
+    });
+    updateBest();
+  }
+
+  function filterModels(type) {
+    currentTypeFilter = type;
+    document.getElementById('btn-all').classList.toggle('active', type === 'all');
+    document.getElementById('btn-sft').classList.toggle('active', type === 'sft');
+    document.getElementById('btn-instruct').classList.toggle('active', type === 'instruct');
+    applyFilters();
+  }
+
+  function updateBest() {
+    document.querySelectorAll('.score-row').forEach(function(row) {
+      var cells = row.querySelectorAll('[data-val]');
+      var visible = [];
+      cells.forEach(function(c) {
+        if (c.style.display !== 'none') visible.push(c);
+      });
+      var maxVal = -Infinity;
+      visible.forEach(function(c) {
+        var v = parseFloat(c.getAttribute('data-val'));
+        if (v > maxVal) maxVal = v;
+      });
+      visible.forEach(function(c) {
+        var v = parseFloat(c.getAttribute('data-val'));
+        if (visible.length > 1 && Math.abs(v - maxVal) < 0.01) {
+          c.innerHTML = '<span class="best-badge">' + v.toFixed(1) + '</span>';
+        } else {
+          c.textContent = v.toFixed(1);
+        }
+      });
+    });
+  }
+
+  applyFilters();
+  document.getElementById('btn-all').addEventListener('click', function() { filterModels('all'); });
+  document.getElementById('btn-sft').addEventListener('click', function() { filterModels('sft'); });
+  document.getElementById('btn-instruct').addEventListener('click', function() { filterModels('instruct'); });
+</script>
+</body>
+</html>

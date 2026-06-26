@@ -1,7 +1,7 @@
 program: activeuf/loop/run.py # Placeholder overwritten by `command`
 method: grid
 metric:
-  name: "loop_sweep"
+  name: "dummy" # TODO
   goal: maximize
 
 command:

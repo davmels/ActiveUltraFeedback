@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --account=${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH --account=a-infra01-1
 #SBATCH --partition=normal
 #SBATCH --time=3:00:00
 #SBATCH --container-writable
@@ -19,13 +19,13 @@ echo "================= Building Docker image ================="
 podman build -t activeuf:latest .
 
 # Remove old (test) container if it exists
-rm -f ${CONTAINERS_DIR:-/path/to/containers}/activeuf.sqsh
+rm -f $SCRATCH/containers/activeuf.sqsh
 
 # Convert the Podman image to a SquashFS image
-enroot import -o ${CONTAINERS_DIR:-/path/to/containers}/activeuf.sqsh podman://activeuf:latest
+enroot import -o $SCRATCH/containers/activeuf.sqsh podman://activeuf:latest
 
 # Set permissions for the sqsh file
-cd ${CONTAINERS_DIR:-/path/to/containers}/
+cd $SCRATCH/containers/
 setfacl -b activeuf.sqsh
 chmod +r activeuf.sqsh
 

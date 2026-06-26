@@ -172,7 +172,7 @@ if __name__ == "__main__":
     args.add_argument(
         "--results_directory",
         type=str,
-        default="/path/to/olmes/results",
+        default="/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/olmes/run/active_new_centered_cosine_big_batches",
         help="Path to the results directory",
     )
     args = args.parse_args()

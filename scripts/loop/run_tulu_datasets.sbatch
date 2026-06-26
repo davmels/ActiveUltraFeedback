@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=tuple_run
-#SBATCH --account=${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH --account=a-infra01-1
 #SBATCH --partition=normal
 #SBATCH --nodes=4
 #SBATCH --time=12:00:00
@@ -41,7 +41,7 @@ case $COMBO_ID in
   0)
     ACQ_TYPE="drts" 
     TAG="checkpoint"
-    CKPT="/path/to/datasets/actives/dpo/drts_enn_qwen_ultrafeedback_20260106-144557-020/checkpoint-checkpoint-3500"
+    CKPT="/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/tulu_3/actives/dpo/drts_enn_qwen_ultrafeedback_20260106-144557-020/checkpoint-checkpoint-3500"
     
     TUPLE_ARGS_ARRAY=(
         "--acquisition_function_type=drts"
@@ -54,7 +54,7 @@ case $COMBO_ID in
   1)    
     ACQ_TYPE="dts"
     TAG="checkpoint"
-    CKPT="/path/to/datasets/actives/dpo/dts_enn_qwen_ultrafeedback_20260106-144556-725/checkpoint-checkpoint-3500"
+    CKPT="/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/tulu_3/actives/dpo/dts_enn_qwen_ultrafeedback_20260106-144556-725/checkpoint-checkpoint-3500"
     
     TUPLE_ARGS_ARRAY=(
         "--acquisition_function_type=dts"
@@ -68,7 +68,7 @@ case $COMBO_ID in
   2)
     ACQ_TYPE="deltaucb"
     TAG="checkpoint"
-    CKPT="/path/to/datasets/actives/dpo/deltaucb_enn_qwen_ultrafeedback_20260106-144555-800/checkpoint-checkpoint-3500"
+    CKPT="/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/tulu_3/actives/dpo/deltaucb_enn_qwen_ultrafeedback_20260106-144555-800/checkpoint-checkpoint-3500"
     
     TUPLE_ARGS_ARRAY=(
         "--acquisition_function_type=deltaucb"
@@ -82,7 +82,7 @@ case $COMBO_ID in
   3)
     ACQ_TYPE="infomax"
     TAG="checkpoint"
-    CKPT="/path/to/datasets/actives/dpo/infomax_enn_qwen_ultrafeedback_20260106-144559-775/checkpoint-checkpoint-3500"
+    CKPT="/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/tulu_3/actives/dpo/infomax_enn_qwen_ultrafeedback_20260106-144559-775/checkpoint-checkpoint-3500"
     
     TUPLE_ARGS_ARRAY=(
         "--acquisition_function_type=infomax"
@@ -96,7 +96,7 @@ case $COMBO_ID in
   4)
     ACQ_TYPE="maxminlcb"
     TAG="checkpoint"
-    CKPT="/path/to/datasets/actives/dpo/maxminlcb_enn_qwen_ultrafeedback_20260106-150110-615/checkpoint-checkpoint-3500"
+    CKPT="/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/tulu_3/actives/dpo/maxminlcb_enn_qwen_ultrafeedback_20260106-150110-615/checkpoint-checkpoint-3500"
     
     TUPLE_ARGS_ARRAY=(
         "--acquisition_function_type=maxminlcb"
@@ -112,7 +112,7 @@ case $COMBO_ID in
   # 0)
   #   ACQ_TYPE="drts"
   #   TAG="drts"
-  #   CKPT="/path/to/datasets/checkpoints/drts"
+  #   CKPT="/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/tulu_chkp_rm/drts"
     
   #   TUPLE_ARGS_ARRAY=(
   #       "--acquisition_function_type=drts"
@@ -125,7 +125,7 @@ case $COMBO_ID in
   # 1)
   #   ACQ_TYPE="dts"
   #   TAG="dts_b1.0_d0.999_r1000"
-  #   CKPT="/path/to/datasets/actives/dpo/dts_enn_qwen_ultrafeedback_20260106-151550-694/checkpoint-dts_b1.0_d0.999_r1000-3500"
+  #   CKPT="/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/tulu_3/actives/dpo/dts_enn_qwen_ultrafeedback_20260106-151550-694/checkpoint-dts_b1.0_d0.999_r1000-3500"
     
   #   TUPLE_ARGS_ARRAY=(
   #       "--acquisition_function_type=dts"
@@ -139,7 +139,7 @@ case $COMBO_ID in
   # 2)
   #   ACQ_TYPE="deltaucb"
   #   TAG="deltaucb_b1.0_d0.99_r100"
-  #   CKPT="/path/to/datasets/actives/dpo/deltaucb_enn_qwen_ultrafeedback_20260106-151650-907/checkpoint-deltaucb_b1.0_d0.99_r100-4250"
+  #   CKPT="/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/tulu_3/actives/dpo/deltaucb_enn_qwen_ultrafeedback_20260106-151650-907/checkpoint-deltaucb_b1.0_d0.99_r100-4250"
     
   #   TUPLE_ARGS_ARRAY=(
   #       "--acquisition_function_type=deltaucb"
@@ -153,7 +153,7 @@ case $COMBO_ID in
   # 3)
   #   ACQ_TYPE="infomax"
   #   TAG="infomax"
-  #   CKPT="/path/to/datasets/checkpoints/infomax"
+  #   CKPT="/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/tulu_chkp_rm/infomax"
     
   #   TUPLE_ARGS_ARRAY=(
   #       "--acquisition_function_type=infomax"
@@ -167,7 +167,7 @@ case $COMBO_ID in
   # 4)
   #   ACQ_TYPE="maxminlcb"
   #   TAG="maxminlcb"
-  #   CKPT="/path/to/datasets/checkpoints/maxminlcb"
+  #   CKPT="/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/tulu_chkp_rm/maxminlcb"
     
   #   TUPLE_ARGS_ARRAY=(
   #       "--acquisition_function_type=maxminlcb"
@@ -220,7 +220,7 @@ export HEAD_PROCESS_PORT=$((29500 + RANDOM % 1000))
 # ==========================================
 
 set -eo pipefail
-export WANDB_ENTITY=${WANDB_ENTITY:-ActiveUF}
+export WANDB_ENTITY=ActiveUF
 echo "wandb entity: $WANDB_ENTITY"
 export LOOP_CONFIG="./configs/loop.yaml"
 echo "loop config: $LOOP_CONFIG"

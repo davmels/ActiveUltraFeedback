@@ -6,7 +6,7 @@
 #SBATCH --gres=gpu:4
 #SBATCH --tasks-per-node=1
 #SBATCH --environment=activeuf_dev
-#SBATCH --account=${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH --account=a-infra01-1
 #SBATCH --exclusive
 #SBATCH --partition=normal
 #SBATCH --time=00:45:00

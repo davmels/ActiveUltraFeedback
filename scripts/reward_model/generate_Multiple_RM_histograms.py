@@ -7,7 +7,16 @@ import numpy as np
 
 # List your results directories here
 results_dirs = [
-    "/path/to/models/reward_models/results/",
+    # "/iopsstor/scratch/cscs/dmelikidze/models/reward_models/results/reward_models/constant",
+    # "/iopsstor/scratch/cscs/dmelikidze/models/reward_models/results/reward_models/cosine",
+    # "/iopsstor/scratch/cscs/dmelikidze/models/reward_models/results/preference_random_llama_checkpoints_good",
+    "/iopsstor/scratch/cscs/dmelikidze/models/reward_models/results/reward_models/",
+    # "/iopsstor/scratch/cscs/dmelikidze/models/reward_models/results/reward_models/skywork_20000.json",
+    # "/iopsstor/scratch/cscs/dmelikidze/models/reward_models/results/reward_models/skywork_30000.json",
+    # "/iopsstor/scratch/cscs/dmelikidze/models/reward_models/results/reward_models/skywork_50000.json",
+    # "/iopsstor/scratch/cscs/dmelikidze/models/reward_models/results/reward_models/skywork_60000.json",
+    # "/iopsstor/scratch/cscs/dmelikidze/models/reward_models/results/reward_models/skywork_70000.json",
+    # "/iopsstor/scratch/cscs/dmelikidze/models/reward_models/results/reward_models/skywork_78000.json",
 ]
 
 metrics = ["Factuality", "Focus", "Math", "Precise IF", "Safety", "Ties", "score"]

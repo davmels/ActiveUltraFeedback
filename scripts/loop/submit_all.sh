@@ -47,31 +47,31 @@ submit_job() {
 
 run_combo_0() {
     submit_job 0 "drts" "checkpoint" \
-        "/path/to/datasets/actives/dpo/drts_enn_qwen_ultrafeedback_20260106-144557-020/checkpoint-checkpoint-3500" \
+        "/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/tulu_3/actives/dpo/drts_enn_qwen_ultrafeedback_20260106-144557-020/checkpoint-checkpoint-3500" \
         "1.0" "0.999" "1000"
 }
 
 run_combo_1() {
     submit_job 1 "dts" "checkpoint" \
-        "/path/to/datasets/actives/dpo/dts_enn_qwen_ultrafeedback_20260106-144556-725/checkpoint-checkpoint-3500" \
+        "/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/tulu_3/actives/dpo/dts_enn_qwen_ultrafeedback_20260106-144556-725/checkpoint-checkpoint-3500" \
         "1.0" "0.99" "1000"
 }
 
 run_combo_2() {
     submit_job 2 "deltaucb" "checkpoint" \
-        "/path/to/datasets/actives/dpo/deltaucb_enn_qwen_ultrafeedback_20260106-144555-800/checkpoint-checkpoint-3500" \
+        "/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/tulu_3/actives/dpo/deltaucb_enn_qwen_ultrafeedback_20260106-144555-800/checkpoint-checkpoint-3500" \
         "2.0" "0.999" "1000"
 }
 
 run_combo_3() {
     submit_job 3 "infomax" "checkpoint" \
-        "/path/to/datasets/actives/dpo/infomax_enn_qwen_ultrafeedback_20260106-144559-775/checkpoint-checkpoint-3500" \
+        "/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/tulu_3/actives/dpo/infomax_enn_qwen_ultrafeedback_20260106-144559-775/checkpoint-checkpoint-3500" \
         "1.0" "0.99" "1000"
 }
 
 run_combo_4() {
     submit_job 4 "maxminlcb" "checkpoint" \
-        "/path/to/datasets/actives/dpo/maxminlcb_enn_qwen_ultrafeedback_20260106-150110-615/checkpoint-checkpoint-3500" \
+        "/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/tulu_3/actives/dpo/maxminlcb_enn_qwen_ultrafeedback_20260106-150110-615/checkpoint-checkpoint-3500" \
         "1.0" "0.99" "1000"
 }
 

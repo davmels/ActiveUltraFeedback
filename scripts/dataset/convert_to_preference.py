@@ -17,7 +17,7 @@ For this the script uses:
     - MaxMin: Chooses the best completion as chosen and the worst as rejected.
 
 Example run command:
-    python -m scripts.dataset.convert_to_preference --input_path /path/to/datasets/ultrafeedback_annotated
+    python -m scripts.dataset.convert_to_preference --input_path /iopsstor/scratch/cscs/smarian/datasets/ultrafeedback_annotated
 """
 
 

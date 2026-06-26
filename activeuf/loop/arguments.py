@@ -16,6 +16,7 @@ from activeuf.acquisition_function.arguments import (
     DRTSConfig,
     DeltaUCBConfig,
     DeltaQuantileConfig,
+    OracleMaxMinConfig,
 )
 from activeuf.utils import ensure_dataclass
 
@@ -41,6 +42,7 @@ class AcquisitionFunctionConfig:
     drts: DRTSConfig = field(default_factory=DRTSConfig)
     deltaucb: DeltaUCBConfig = field(default_factory=DeltaUCBConfig)
     deltaquantile: DeltaQuantileConfig = field(default_factory=DeltaQuantileConfig)
+    oracle_maxmin: OracleMaxMinConfig = field(default_factory=OracleMaxMinConfig)
 
 
 @dataclass
@@ -152,6 +154,115 @@ class ENNConfig:
 
 
 @dataclass
+class BLHModelConfig:
+    base_model_name_or_path: str = field(
+        metadata={"help": "Name or path of the base model."}
+    )
+    lambda_reg: float = field(
+        metadata={"help": "L2 regularization / Hessian prior precision."}
+    )
+    std_beta: float = field(
+        metadata={"help": "Multiplier for std in uncertainty bounds."}
+    )
+    feature_extraction_layer: str = field(
+        metadata={"help": "Which layer to use for feature extraction."}
+    )
+    feature_extraction_pooling_strategy: str = field(
+        default="last",
+        metadata={"help": "Pooling strategy for feature extraction."},
+    )
+
+
+@dataclass
+class BLHTrainerConfig:
+    warmup_ratio: float = field()
+    lr_scheduler_type: str = field(
+        metadata={
+            "help": "Type of learning rate scheduler.",
+            "choices": ["constant", "linear", "cosine"],
+        }
+    )
+    learning_rate: float = field(metadata={"help": "Initial learning rate."})
+    num_train_epochs: int = field(
+        metadata={"help": "Number of training epochs per outer batch added."}
+    )
+    l2_reg: float = field(
+        metadata={"help": "L2 regularization strength for the head weights."}
+    )
+    max_length: int = field(metadata={"help": "Maximum sequence length."})
+    center_rewards_coefficient: float | None = field(
+        metadata={
+            "help": "Coefficient to incentivize the reward model to output mean-zero rewards"
+        }
+    )
+    precompute_features: bool = field()
+    bf16: bool = field(metadata={"help": "Whether to use bfloat16 precision."})
+    disable_tqdm: bool = field(metadata={"help": "Disable tqdm progress bars."})
+    report_to: str = field(metadata={"help": "Reporting tool for the trainer."})
+    save_strategy: str = field(metadata={"help": "Strategy for saving checkpoints."})
+    save_steps: int = field(metadata={"help": "Number of steps between each save"})
+    logging_strategy: str = field(metadata={"help": "Strategy for logging."})
+    logging_steps: int = field(metadata={"help": "Number of steps between each log"})
+    final_hessian_mode: str = field(
+        default="unweighted",
+        metadata={
+            "help": "How to compute the post-training Hessian.",
+            "choices": ["unweighted", "weighted"],
+        },
+    )
+    output_dir: str | None = field(
+        default=None,
+        metadata={"help": "Where to save checkpoints."},
+    )
+
+
+@dataclass
+class BLHRegularizationConfig:
+    initial_value: float = field(
+        metadata={"help": "Initial L2 regularization / lambda_reg value."}
+    )
+    decay_type: str = field(
+        metadata={
+            "help": "Type of decay for regularization.",
+            "choices": ["linear", "exponential"],
+        }
+    )
+    exponential_decay_base: float = field(
+        metadata={"help": "Base for exponential decay regularization."}
+    )
+    exponential_decay_scaler: float = field(
+        metadata={"help": "Scaler for exponent in exponential decay regularization."}
+    )
+
+
+@dataclass
+class BLHConfig:
+    previous_checkpoint_path: str | None = field(
+        metadata={
+            "help": "Path to a previous checkpoint if resuming training.",
+        }
+    )
+    effective_batch_size: int = field(
+        metadata={"help": "Effective batch size for training BLH."}
+    )
+    inference_batch_size: int = field(
+        metadata={"help": "Number of completions per reward forward pass."}
+    )
+
+    model: BLHModelConfig = field(metadata={"help": "Configuration for the BLH model."})
+    trainer: BLHTrainerConfig = field(
+        metadata={"help": "Trainer configuration for BLH."}
+    )
+    max_steps: int = field(
+        metadata={"help": "Maximum number of training steps per outer batch added."}
+    )
+    regularization: BLHRegularizationConfig | None = field(
+        default=None,
+        metadata={"help": "Regularization settings for BLH (unused, kept for backward compat)."},
+    )
+
+
+@dataclass
 class LoopConfig:
     # dataset-related configs
     inputs_path: str = field(
@@ -175,13 +286,14 @@ class LoopConfig:
                 "maxminlcb",
                 "infogain",
                 "infomax",
+                "oracle_maxmin",
             ],
         }
     )
     reward_model_type: str = field(
         metadata={
             "help": "Reward model to train.",
-            "choices": ["none", "enn"],
+            "choices": ["none", "enn", "blh", "static"],
         }
     )
 
@@ -210,7 +322,52 @@ class LoopConfig:
     enn: ENNConfig | None = field(
         metadata={"help": "All configs related to ENN reward model and training."}
     )
+    blh: BLHConfig | None = field(
+        default=None,
+        metadata={"help": "All configs related to BLH reward model and training."},
+    )
     
+    # dataset filtering
+    min_non_truncated: int = field(
+        default=2,
+        metadata={
+            "help": "Drop prompts with fewer than this many non-truncated completions "
+                    "(needs the `truncated` field). Must be >=2 to form a chosen/rejected pair."
+        },
+    )
+
+    # direct max/min baseline
+    direct_maxmin: bool = field(
+        default=False,
+        metadata={
+            "help": "Direct max/min baseline. When set, the reward used per completion is just "
+                    "the oracle overall_score (no reward-model forward passes, no RM training), "
+                    "and each prompt's chosen/rejected pair is the max/min non-truncated completion "
+                    "by score gap. Implemented by forcing reward_model_type=static and "
+                    "acquisition_function_type=oracle_maxmin, so it rides on the existing loop. "
+                    "Toggle off to restore the configured reward model / acquisition function."
+        },
+    )
+
+    # prompt selection
+    prompt_selection_K: int | None = field(
+        default=None,
+        metadata={
+            "help": "Number of prompts to select per iteration from the batch of outer_loop_batch_size (L). "
+                    "When set, acquisition functions score and select the top K prompts before choosing completion pairs. "
+                    "Unselected prompts return to the pool. None means select all (original behavior)."
+        },
+    )
+    domain_quota_selection: bool = field(
+        default=False,
+        metadata={
+            "help": "When selecting K prompts from L, cap each Olmo3 domain at floor(K * pool_fraction) "
+                    "on a first ranked (top->bottom) pass, then random-fill any shortfall from the skipped "
+                    "(over-quota) prompts. pool_fraction is the domain's share of the filtered selection pool. "
+                    "Requires prompt_selection_K and the deltaucb acquisition function."
+        },
+    )
+
     # checkpointing
     resume_from_checkpoint: str | None = field(
         default=None,
@@ -248,7 +405,7 @@ def recursive_update(base_dict, new_dict):
     Values in new_dict will overwrite values in base_dict.
     """
     for key, value in new_dict.items():
-        if value is None:
+        if value is None and key not in base_dict:
             continue
 
         if "." in key:
@@ -292,6 +449,15 @@ def parse_overwrites(remaining_args) -> dict:
         elif key in ["enn.max_steps", "enn.trainer.max_length"]:
             overwrite_dict["enn.max_steps"] = value
             overwrite_dict["enn.trainer.max_length"] = value
+        elif key in [
+            "blh.trainer.l2_reg",
+            "blh.model.lambda_reg",
+        ]:
+            overwrite_dict["blh.trainer.l2_reg"] = value
+            overwrite_dict["blh.model.lambda_reg"] = value
+        elif key in ["blh.max_steps", "blh.trainer.max_length"]:
+            overwrite_dict["blh.max_steps"] = value
+            overwrite_dict["blh.trainer.max_length"] = value
 
     return overwrite_dict
 
@@ -337,22 +503,19 @@ def get_loop_args(timestamp) -> argparse.Namespace:
 
     # define timestamp, then use it to create a run id (env var takes precedence over config)
     config_dict["timestamp"] = timestamp
-    config_dict["run_id"] = "_".join(
-        [
-            config_dict["acquisition_function_type"],
-            config_dict["reward_model_type"],
-            extract_annotator_name(config_dict["inputs_path"]),
-            config_dict["oracle_name"],
-            config_dict["timestamp"],
-        ]
-    )
     if not os.getenv("WANDB_RUN_ID"):
+        obs = config_dict.get("outer_loop_batch_size", "")
+        pk = config_dict.get("prompt_selection_K")
+        size_tag = f"L{obs}_K{pk}" if pk else f"L{obs}"
+        if pk and config_dict.get("domain_quota_selection"):
+            size_tag += "_domquota"
         config_dict["run_id"] = "_".join(
             [
                 config_dict["acquisition_function_type"],
                 config_dict["reward_model_type"],
                 extract_annotator_name(config_dict["inputs_path"]),
                 config_dict["oracle_name"],
+                size_tag,
                 config_dict["timestamp"],
             ]
         )
@@ -384,11 +547,12 @@ def get_loop_args(timestamp) -> argparse.Namespace:
             config_dict["base_wandb_dir"], config_dict["run_id"]
         )
 
-        trainer_args = config_dict[config_dict["reward_model_type"]]["trainer"]
-        if not trainer_args.get("output_dir"):
-            trainer_args["output_dir"] = (
-                f"{config_dict['base_trainer_dir']}/{config_dict['run_id']}"
-            )
+        if config_dict["reward_model_type"] != "static":
+            trainer_args = config_dict[config_dict["reward_model_type"]]["trainer"]
+            if not trainer_args.get("output_dir"):
+                trainer_args["output_dir"] = (
+                    f"{config_dict['base_trainer_dir']}/{config_dict['run_id']}"
+                )
 
     parser = HfArgumentParser(LoopConfig)
     args = parser.parse_dict(config_dict, allow_extra_keys=True)[0]

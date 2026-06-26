@@ -16,8 +16,15 @@ from rewarduq.methods.mlp_head_ensemble import (
     MLPHeadEnsembleTrainerConfig as ENNRewardModelTrainerConfig,
     MLPHeadEnsemblePipeline as ENNRewardModelPipeline,
 )
+from rewarduq.methods.bayesian_linear_head import (
+    BayesianLinearHeadModel as BLHRewardModel,
+    BayesianLinearHeadModelConfig as BLHRewardModelConfig,
+    BayesianLinearHeadTrainer as BLHRewardModelTrainer,
+    BayesianLinearHeadTrainerConfig as BLHRewardModelTrainerConfig,
+    BayesianLinearHeadPipeline as BLHRewardModelPipeline,
+)
 
-from activeuf.loop.arguments import ENNConfig
+from activeuf.loop.arguments import ENNConfig, BLHConfig
 
 
 def main_process_only(f, accelerator):
@@ -39,6 +46,7 @@ def custom_collate(batch):
         "source",
         "completions",
         "features",
+        "original_index",
     ]:
         if key in batch[0]:
             out[key] = [x[key] for x in batch]
@@ -51,11 +59,14 @@ def custom_decollate(collated_batch):
         item = {
             "prompt_id": collated_batch["prompt_id"][i],
             "prompt": collated_batch["prompt"][i],
-            "source": collated_batch["source"][i],
             "completions": collated_batch["completions"][i],
         }
+        if "source" in collated_batch:
+            item["source"] = collated_batch["source"][i]
         if "features" in collated_batch:
             item["features"] = collated_batch["features"][i]
+        if "original_index" in collated_batch:
+            item["original_index"] = collated_batch["original_index"][i]
         out.append(item)
     return out
 
@@ -114,8 +125,9 @@ class WandbStepLoggerCallback(TrainerCallback):
                     values = [_ for _ in values if _ is not None]
                     mean_trainer_logs[k] = sum(values) / len(values)
 
-                for key in ["regularization_towards_initial_weights"]:
-                    mean_trainer_logs[key] = getattr(args, key)
+                for key in ["regularization_towards_initial_weights", "l2_reg"]:
+                    if hasattr(args, key):
+                        mean_trainer_logs[key] = getattr(args, key)
 
                 # let current logs piggyback on the last entry in the cache
                 if WANDB_LOGS_CACHE:
@@ -132,9 +144,9 @@ class WandbStepLoggerCallback(TrainerCallback):
 
 
 def init_model_trainer(
-    reward_model_type: str, reward_args: ENNConfig | None, n_processes: int
+    reward_model_type: str, reward_args: ENNConfig | BLHConfig | None, n_processes: int
 ):
-    if reward_model_type == "none":
+    if reward_model_type in ("none", "static"):
         model, trainer = None, None
 
     elif reward_model_type == "enn":
@@ -175,10 +187,154 @@ def init_model_trainer(
                 ]
             ),
         )
+    elif reward_model_type == "blh":
+        trainer_kwargs = asdict(reward_args.trainer)
+        trainer_kwargs["l2_reg"] = float(trainer_kwargs["l2_reg"])
+        trainer_config = BLHRewardModelTrainerConfig(
+            per_device_train_batch_size=-(
+                reward_args.effective_batch_size // -n_processes
+            ),
+            **trainer_kwargs,
+        )
+
+        if reward_args.previous_checkpoint_path:
+            model = BLHRewardModel.from_pretrained(
+                reward_args.previous_checkpoint_path,
+            )
+            tokenizer = model.tokenizer
+        else:
+            model_kwargs = asdict(reward_args.model)
+            model_kwargs["lambda_reg"] = float(model_kwargs["lambda_reg"])
+            model_kwargs["std_beta"] = float(model_kwargs["std_beta"])
+            pipeline = BLHRewardModelPipeline(
+                BLHRewardModelConfig(**model_kwargs),
+                trainer_config,
+            )
+            model = pipeline.model
+            tokenizer = model.tokenizer
+
+        trainer = BLHRewardModelTrainer(
+            args=trainer_config,
+            model=model,
+            processing_class=tokenizer,
+            train_dataset=Dataset.from_list(
+                [
+                    {
+                        "prompt": "dummy",
+                        "chosen": "dummy",
+                        "rejected": "dummy",
+                    }
+                ]
+            ),
+        )
     else:
         raise NotImplementedError(f"{reward_model_type=} not implemented.")
 
     return model, trainer
+
+
+def _extract_z_vectors(train_subsample):
+    """Extract normalized feature-difference vectors from a training subsample."""
+    z_vectors = []
+    for sample in train_subsample:
+        chosen_f = sample["chosen_features"]
+        rejected_f = sample["rejected_features"]
+        if not isinstance(chosen_f, torch.Tensor):
+            chosen_f = torch.tensor(chosen_f)
+        if not isinstance(rejected_f, torch.Tensor):
+            rejected_f = torch.tensor(rejected_f)
+        chosen_f = torch.nn.functional.normalize(chosen_f.float(), dim=-1)
+        rejected_f = torch.nn.functional.normalize(rejected_f.float(), dim=-1)
+        z_vectors.append(chosen_f - rejected_f)
+    return torch.stack(z_vectors) if z_vectors else None
+
+
+def blh_newton_map(model, train_subsample, accelerator, max_iter=20, tol=1e-4):
+    """Find the MAP estimate for the BLH head using Newton's method (IRLS).
+
+    Returns a dict of wandb-loggable metrics from each iteration.
+    """
+    inner = accelerator.unwrap_model(model)
+    dtype = inner.safe_dtype
+
+    Z = _extract_z_vectors(train_subsample)
+    if Z is None:
+        return []
+    Z = Z.to(dtype=dtype, device="cpu")
+    n_samples = Z.shape[0]
+
+    H_prior = inner.H.cpu().to(dtype=dtype)
+    mu_prior = inner._prior_mean.cpu().to(dtype=dtype)
+
+    w = mu_prior.clone()
+
+    logs = []
+    for it in range(max_iter):
+        logits = Z @ w
+        probs = torch.sigmoid(logits)
+
+        loss_base = -torch.nn.functional.logsigmoid(logits).mean().item()
+        delta = w - mu_prior
+        loss_reg = (0.5 * delta @ H_prior @ delta).item()
+        win_rate = (probs > 0.5).float().mean().item()
+
+        grad_data = -(1.0 - probs) @ Z / n_samples
+        grad_reg = H_prior @ delta
+        grad = grad_data + grad_reg
+        grad_norm = grad.norm().item()
+
+        logs.append({
+            "blh_newton/iteration": it,
+            "blh_newton/loss": loss_base + loss_reg,
+            "blh_newton/loss_base": loss_base,
+            "blh_newton/loss_reg": loss_reg,
+            "blh_newton/grad_norm": grad_norm,
+            "blh_newton/win_rate": win_rate,
+        })
+
+        if grad_norm < tol:
+            break
+
+        d = probs * (1.0 - probs)
+        H_data = (Z.T * d) @ Z / n_samples
+        H_total = H_data + H_prior
+        step = torch.linalg.solve(H_total, grad)
+        w = w - step
+
+    # Set head weights to MAP estimate
+    with torch.no_grad():
+        inner.head.linear.weight.copy_(
+            w.unsqueeze(0).to(device=inner.head.linear.weight.device, dtype=inner.head.linear.weight.dtype)
+        )
+
+    # Update prior and Hessian
+    inner.set_prior_from_posterior()
+
+    # Incremental Hessian update for uncertainty
+    original_device = inner.H.device
+    inner.H = inner.H.cpu().to(dtype=dtype)
+    inner.H = inner.H + Z.T @ Z
+    inner._H_inv = torch.linalg.pinv(inner.H)
+    inner._H_inv_computed = True
+    inner.H = inner.H.to(original_device)
+    inner._H_inv = inner._H_inv.to(original_device)
+
+    return logs
+
+
+def compute_blh_hessian(model, train_subsample, accelerator):
+    """Incrementally update the Hessian: H_new = H_prev + Z^T Z using the training subsample."""
+    inner = accelerator.unwrap_model(model)
+    Z = _extract_z_vectors(train_subsample)
+    if Z is not None:
+        Z = Z.to(dtype=inner.safe_dtype, device="cpu")
+        original_device = inner.H.device
+        inner.H = inner.H.cpu()
+        inner.H = inner.H + Z.T @ Z
+        inner._H_inv = torch.linalg.pinv(inner.H)
+        inner._H_inv_computed = True
+        inner.H = inner.H.to(original_device)
+        inner._H_inv = inner._H_inv.to(original_device)
 
 
 def compute_rewards_with_uncertainty_bounds(
@@ -269,27 +425,47 @@ def compute_rewards_with_uncertainty_bounds(
     return rewards_batch
 
 
+def compute_static_rewards(samples) -> torch.Tensor:
+    """Extract LLM judge scores from samples as rewards with zero uncertainty."""
+    n_samples = len(samples)
+    n_completions = len(samples[0]["completions"])
+
+    rewards = torch.zeros(n_samples, n_completions, 3, dtype=torch.float32)
+    for i, sample in enumerate(samples):
+        for j, comp in enumerate(sample["completions"]):
+            score = float(comp["overall_score"])
+            rewards[i, j, 0] = score
+            rewards[i, j, 1] = score
+            rewards[i, j, 2] = score
+
+    for sample in samples:
+        if "features" not in sample:
+            sample["features"] = [torch.zeros(1) for _ in sample["completions"]]
+
+    return rewards
+
+
 def get_acquired(samples, acquired_idxs):
     acquired = []
     for sample, (a, b) in zip(samples, acquired_idxs):
         assert a != b
         completions = sample["completions"]
 
-        acquired.append(
-            {
-                "prompt_id": sample["prompt_id"],
-                "prompt": sample["prompt"],
-                "source": sample["source"],
-                "response_text_1": completions[a]["response_text"],
-                "features_1": sample["features"][a],
-                "model_1": completions[a]["model"],
-                "score_1": completions[a]["overall_score"],
-                "response_text_2": completions[b]["response_text"],
-                "features_2": sample["features"][b],
-                "model_2": completions[b]["model"],
-                "score_2": completions[b]["overall_score"],
-            }
-        )
+        item = {
+            "prompt_id": sample["prompt_id"],
+            "prompt": sample["prompt"],
+            "response_text_1": completions[a]["response_text"],
+            "features_1": sample["features"][a],
+            "model_1": completions[a]["model"],
+            "score_1": completions[a]["overall_score"],
+            "response_text_2": completions[b]["response_text"],
+            "features_2": sample["features"][b],
+            "model_2": completions[b]["model"],
+            "score_2": completions[b]["overall_score"],
+        }
+        if "source" in sample:
+            item["source"] = sample["source"]
+        acquired.append(item)
     return acquired
 
 
@@ -323,6 +499,175 @@ def compute_kpis(rewards, acquired_idxs) -> list[dict]:
     return kpis
 
 
+def compute_uncertainty_kpis(kpis_batch, annotated_batch, rewards=None, acquired_idxs=None) -> dict:
+    """Compute batch-level uncertainty quality metrics.
+
+    Requires kpis_batch (with reward/uncertainty per sample) and annotated_batch
+    (with oracle chosen_score/rejected_score) to be aligned.
+    When rewards (n, n_comp, 3) and acquired_idxs (n, 2) are provided,
+    computes additional deltaUCB-relevant metrics.
+    """
+    n = len(kpis_batch)
+    if n == 0:
+        return {}
+
+    confidence_wins = 0
+    overconfident_errors = 0
+    uncertain_correct = 0
+    uncertain_incorrect = 0
+    oracle_chosen_agree = 0
+    confidence_margin_sum = 0.0
+
+    chosen_ucb_gap_sum = 0.0
+    rejected_lcb_gap_sum = 0.0
+    chosen_lcb_overlap_sum = 0
+    rejected_ucb_overlap_sum = 0
+    delta_ucb_score_sum = 0.0
+    mean_ci_width_sum = 0.0
+    chosen_dominance_ratio_sum = 0.0
+    rejected_dominance_ratio_sum = 0.0
+    chosen_dominance_count = 0
+    rejected_dominance_count = 0
+
+    has_full_rewards = rewards is not None and acquired_idxs is not None
+    if has_full_rewards:
+        _rewards, _lower_bounds, _upper_bounds = rewards.unbind(-1)
+        _chosen_idxs, _rejected_idxs = acquired_idxs.unbind(-1)
+
+    for i in range(n):
+        kpi = kpis_batch[i]
+        ann = annotated_batch[i]
+
+        chosen_lower = kpi["chosen_rewards_per_sample"] - kpi["chosen_uncertainty_per_sample"]
+        rejected_upper = kpi["rejected_rewards_per_sample"] + kpi["rejected_uncertainty_per_sample"]
+        confidence_margin_sum += chosen_lower - rejected_upper
+
+        confident = chosen_lower >= rejected_upper
+        oracle_agrees = ann["oracle_score_first"] >= ann["oracle_score_second"]
+
+        if oracle_agrees:
+            oracle_chosen_agree += 1
+        if confident and oracle_agrees:
+            confidence_wins += 1
+        elif confident and not oracle_agrees:
+            overconfident_errors += 1
+        elif not confident and oracle_agrees:
+            uncertain_correct += 1
+        else:
+            uncertain_incorrect += 1
+
+        if has_full_rewards:
+            ci = _chosen_idxs[i].item()
+            ri = _rejected_idxs[i].item()
+            ucbs = _upper_bounds[i]
+            lcbs = _lower_bounds[i]
+
+            chosen_ucb = ucbs[ci].item()
+            chosen_lcb = lcbs[ci].item()
+            rejected_ucb = ucbs[ri].item()
+            rejected_lcb = lcbs[ri].item()
+
+            delta_ucb_score_sum += chosen_ucb - rejected_lcb
+            mean_ci_width_sum += (ucbs - lcbs).mean().item()
+
+            other_ucbs = torch.cat([ucbs[:ci], ucbs[ci+1:]])
+            if other_ucbs.numel() > 0:
+                second_best_ucb = other_ucbs.max().item()
+                chosen_ucb_gap_sum += chosen_ucb - second_best_ucb
+                chosen_ci = chosen_ucb - chosen_lcb
+                if abs(chosen_ci) > 1e-9:
+                    chosen_dominance_ratio_sum += (second_best_ucb - chosen_lcb) / chosen_ci
+                    chosen_dominance_count += 1
+            chosen_lcb_overlap_sum += int((other_ucbs >= chosen_lcb).sum().item())
+
+            other_lcbs = torch.cat([lcbs[:ri], lcbs[ri+1:]])
+            if other_lcbs.numel() > 0:
+                second_worst_lcb = other_lcbs.min().item()
+                rejected_lcb_gap_sum += rejected_lcb - second_worst_lcb
+                rejected_ci = rejected_ucb - rejected_lcb
+                if abs(rejected_ci) > 1e-9:
+                    rejected_dominance_ratio_sum += (rejected_ucb - second_worst_lcb) / rejected_ci
+                    rejected_dominance_count += 1
+            rejected_ucb_overlap_sum += int((other_lcbs <= rejected_ucb).sum().item())
+
+    result = {
+        "mean_confidence_win_rate_per_batch": confidence_wins / n,
+        "mean_overconfident_error_rate_per_batch": overconfident_errors / n,
+        "mean_uncertain_correct_rate_per_batch": uncertain_correct / n,
+        "mean_uncertain_incorrect_rate_per_batch": uncertain_incorrect / n,
+        "mean_oracle_agreement_rate_per_batch": (oracle_chosen_agree) / n,
+        "mean_actual_score_difference_per_batch": sum(
+            a["chosen_score"] - a["rejected_score"] for a in annotated_batch
+        ) / n,
+        "mean_confidence_margin_per_batch": confidence_margin_sum / n,
+    }
+
+    if has_full_rewards:
+        result.update({
+            "mean_chosen_ucb_gap_per_batch": chosen_ucb_gap_sum / n,
+            "mean_rejected_lcb_gap_per_batch": rejected_lcb_gap_sum / n,
+            "mean_chosen_lcb_overlap_count_per_batch": chosen_lcb_overlap_sum / n,
+            "mean_rejected_ucb_overlap_count_per_batch": rejected_ucb_overlap_sum / n,
+            "mean_delta_ucb_score_per_batch": delta_ucb_score_sum / n,
+            "mean_ci_width_per_batch": mean_ci_width_sum / n,
+        })
+        if chosen_dominance_count > 0:
+            result["mean_chosen_dominance_ratio_per_batch"] = chosen_dominance_ratio_sum / chosen_dominance_count
+        if rejected_dominance_count > 0:
+            result["mean_rejected_dominance_ratio_per_batch"] = rejected_dominance_ratio_sum / rejected_dominance_count
+
+    return result
+
+
+def compute_oracle_extremes(samples):
+    """For each sample, find the oracle's best and worst non-truncated completion indices."""
+    results = []
+    for sample in samples:
+        completions = sample["completions"]
+        valid = []
+        for i, c in enumerate(completions):
+            if c.get("truncated", 0):
+                continue
+            valid.append((i, c["overall_score"]))
+
+        if len(valid) < 2:
+            results.append({"oracle_best_idx": -1, "oracle_worst_idx": -1,
+                            "oracle_best_score": -1.0, "oracle_worst_score": -1.0,
+                            "oracle_best_response": "", "oracle_worst_response": ""})
+        else:
+            best_idx, best_score = max(valid, key=lambda x: x[1])
+            worst_idx, worst_score = min(valid, key=lambda x: x[1])
+            results.append({"oracle_best_idx": best_idx, "oracle_worst_idx": worst_idx,
+                            "oracle_best_score": best_score, "oracle_worst_score": worst_score,
+                            "oracle_best_response": completions[best_idx]["response_text"],
+                            "oracle_worst_response": completions[worst_idx]["response_text"]})
+    return results
+
+
+def compute_modelwise_kpis(samples, rewards) -> dict:
+    """Average reward and uncertainty per model across all completions in the batch."""
+    _rewards, _lower_bounds, _upper_bounds = rewards.unbind(-1)
+    _uncertainty = (_upper_bounds - _lower_bounds) / 2
+
+    from collections import defaultdict
+    model_rewards = defaultdict(list)
+    model_uncertainties = defaultdict(list)
+
+    for i, sample in enumerate(samples):
+        for j, comp in enumerate(sample["completions"]):
+            model_name = comp["model"]
+            model_rewards[model_name].append(_rewards[i, j].item())
+            model_uncertainties[model_name].append(_uncertainty[i, j].item())
+
+    kpis = {}
+    for model_name in sorted(model_rewards):
+        r = model_rewards[model_name]
+        u = model_uncertainties[model_name]
+        kpis[f"modelwise_mean_reward/{model_name}"] = sum(r) / len(r)
+        kpis[f"modelwise_mean_uncertainty/{model_name}"] = sum(u) / len(u)
+    return kpis
+
+
 def restructure_sample(x: dict) -> dict:
     if isinstance(x["prompt"], list):
         prompt_messages = x["prompt"]
@@ -341,29 +686,30 @@ def get_new_regularization(
     exponential_decay_base: float = None,
     exponential_decay_scaler: float = None,
 ) -> float:
+    initial_value = float(initial_value)
     if decay_type == "linear":
         return initial_value * (1.0 - n_done / n_total)
     elif decay_type == "exponential":
         frac_done = n_done / n_total
-        exponent = exponential_decay_scaler * frac_done
-        return initial_value * (exponential_decay_base**exponent)
+        exponent = float(exponential_decay_scaler) * frac_done
+        return initial_value * (float(exponential_decay_base) ** exponent)
     else:
         raise ValueError(f"{decay_type=} not supported")
 
 
 def save_loop_checkpoint(
-    save_dir: str, 
-    args, 
-    loop_state: dict, 
-    replay_buffer, 
-    output_data: list, 
+    save_dir: str,
+    args,
+    loop_state: dict,
+    replay_buffer,
+    output_data: list,
     trainer=None,
-    model=None
+    model=None,
+    remaining_indices=None,
 ):
     """Saves loop state, buffer, data, AND RNG states."""
     os.makedirs(save_dir, exist_ok=True)
 
-    # 1. Standard Data
     with open(os.path.join(save_dir, "config.json"), "w") as f:
         json.dump(asdict(args), f, indent=2)
 
@@ -372,14 +718,13 @@ def save_loop_checkpoint(
 
     with open(os.path.join(save_dir, "replay_buffer.pkl"), "wb") as f:
         pickle.dump(replay_buffer, f)
-    
+
     with open(os.path.join(save_dir, "output_list.pkl"), "wb") as f:
         pickle.dump(output_data, f)
 
-    # 2. Save Model/Trainer
     if trainer is not None:
-        trainer.save_model(save_dir) 
-        trainer.save_state() 
+        trainer.save_model(save_dir)
+        trainer.save_state()
         if trainer.optimizer is not None:
             torch.save(trainer.optimizer.state_dict(), os.path.join(save_dir, "optimizer.pt"))
         if trainer.lr_scheduler is not None:
@@ -387,7 +732,10 @@ def save_loop_checkpoint(
     elif model is not None:
         model.save_pretrained(save_dir)
 
-    # --- NEW: SAVE RNG STATES ---
+    if remaining_indices is not None:
+        with open(os.path.join(save_dir, "remaining_indices.json"), "w") as f:
+            json.dump(remaining_indices, f)
+
     rng_states = {
         "python": random.getstate(),
         "numpy": np.random.get_state(),
@@ -417,5 +765,11 @@ def load_loop_checkpoint(checkpoint_dir: str):
     if os.path.exists(rng_path):
         with open(rng_path, "rb") as f:
             rng_states = pickle.load(f)
-            
-    return loop_state, replay_buffer, output_data, rng_states
+
+    remaining_indices = None
+    ri_path = os.path.join(checkpoint_dir, "remaining_indices.json")
+    if os.path.exists(ri_path):
+        with open(ri_path, "r") as f:
+            remaining_indices = json.load(f)
+
+    return loop_state, replay_buffer, output_data, rng_states, remaining_indices

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-CACHE_DIR="${CACHE_DIR:-/tmp/cache}"
-DATASETS_DIR="${DATA_DIR:-/path/to/datasets}"
+CACHE_DIR="$SCRATCH/cache"
+DATASETS_DIR="$SCRATCH/datasets"
 
 # Run configs:
 # Format: MODEL:SEED:CHUNK_INDEX:NUM_CHUNKS
@@ -74,7 +74,7 @@ for config in "${CONFIGS[@]}"; do
     
     sbatch <<EOF
 #!/bin/bash
-#SBATCH --account=${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH --account=a-infra01-1
 #SBATCH --partition=normal
 #SBATCH --time=12:00:00
 #SBATCH --container-writable

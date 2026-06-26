@@ -2,9 +2,9 @@
 set -euo pipefail
 
 # Base path as requested (absolute)
-BASE_ROOT="${DATA_DIR:-/path/to/datasets}/7_preference_datasets"
-DPO_MODELS_DIR="${MODELS_DIR:-/path/to/models}/dpo"
-BASE_CACHE_DIR="${CACHE_DIR:-/tmp/cache}"
+BASE_ROOT="$SCRATCH/datasets/7_preference_datasets"
+DPO_MODELS_DIR="$SCRATCH/models/dpo"
+BASE_CACHE_DIR="$SCRATCH"
 
 BASE_DATASET_PATHS=(
   "$BASE_ROOT/skywork_with_small"
@@ -237,7 +237,7 @@ for DATASET_PATH in "${FINAL_DATASETS[@]}"; do
     sbatch << EOF
 #!/bin/bash
 
-#SBATCH -A ${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH -A a-infra01-1
 #SBATCH --job-name=dpo_experiments
 #SBATCH --output=logs/dpo/O-%x.%j
 #SBATCH --error=logs/dpo/E-%x.%j
@@ -257,14 +257,14 @@ MAIN_PROCESS_PORT=29500
 NUM_PROCESSES=\$(expr \$SLURM_NNODES \\* \$SLURM_GPUS_ON_NODE)
 
 CMD="accelerate launch \\
-    --config_file=\configs/accelerate/multi_node.yaml \\
+    --config_file=\$SCRATCH/ActiveUltraFeedback/configs/accelerate/multi_node.yaml \\
     --num_processes \$NUM_PROCESSES \\
     --num_machines \$SLURM_NNODES \\
     --machine_rank \\\$SLURM_NODEID \\
     --main_process_ip \$MAIN_PROCESS_IP \\
     --main_process_port \$MAIN_PROCESS_PORT \\
     -m activeuf.dpo.training \\
-    --config_path \configs/dpo_training.yaml \\
+    --config_path \$SCRATCH/ActiveUltraFeedback/configs/dpo_training.yaml \\
     --slurm_job_id \$SLURM_JOB_ID \\
     --dataset_path $DATASET_PATH \\
     --beta 0.1 \\

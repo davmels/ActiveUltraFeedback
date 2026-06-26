@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=tuple_run
-#SBATCH -A ${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH -A a-infra01-1
 #SBATCH --output=./logs/loop/tuple_run_%j.out
 #SBATCH --time=12:00:00
 #SBATCH --partition=normal
@@ -134,7 +134,7 @@ echo -e "========================\n\n\n"
 
 set -eo pipefail
 
-export WANDB_ENTITY=${WANDB_ENTITY:-ActiveUF}
+export WANDB_ENTITY=ActiveUF
 export LOOP_CONFIG="./configs/loop.yaml"
 export ACCELERATE_CONFIG="./configs/accelerate/multi_node.yaml"
 

@@ -18,10 +18,10 @@ MAX_TRAINING_STEPS=(100)
 
 # Annotator models -> dataset paths (edit if needed)
 declare -A DATASET_MAP
-# DATASET_MAP[llama70b]="/path/to/datasets/combined_annotations_llama"
-DATASET_MAP[qwen235b]="/path/to/datasets/combined_with_small_qwen_3_235b-features"
+# DATASET_MAP[llama70b]="/iopsstor/scratch/cscs/dmelikidze/datasets/combined_annotations_llama"
+DATASET_MAP[qwen235b]="/iopsstor/scratch/cscs/dmelikidze/datasets/combined_with_small_qwen_3_235b-features"
 
-OUTPUT_DIR_BASE="/path/to/datasets/active/centered_cosine_correct"
+OUTPUT_DIR_BASE="/iopsstor/scratch/cscs/dmelikidze/datasets/active/centered_cosine_correct"
 
 
 # Acquisition functions (strings passed to --acquisition_function_type)

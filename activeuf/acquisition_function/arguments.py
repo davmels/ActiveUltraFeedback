@@ -81,6 +81,11 @@ class DeltaQuantileConfig:
 
 
 @dataclass
+class OracleMaxMinConfig:
+    pass
+
+
+@dataclass
 class DRTSConfig:
     max_iterations: int = field(metadata={"help": "Maximum iterations for DRTS."})
     beta: float = field(

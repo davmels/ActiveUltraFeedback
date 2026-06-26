@@ -6,7 +6,9 @@ from collections import defaultdict
 import numpy as np
 
 # Directory containing your metric JSON files
-results_dir = "/path/to/models/reward_models/results"
+results_dir = (
+    "/iopsstor/scratch/cscs/dmelikidze/models/reward_models/results/reward_models"
+)
 
 # Metrics to plot
 metrics = ["Factuality", "Focus", "Math", "Precise IF", "Safety", "Ties", "score"]
@@ -15,7 +17,7 @@ metrics = ["Factuality", "Focus", "Math", "Precise IF", "Safety", "Ties", "score
 metrics_by_step = defaultdict(lambda: defaultdict(list))
 
 # Regex to extract step number from filename
-step_pattern = re.compile(r"allenai_checkpoints_(\d+)\.json")
+step_pattern = re.compile(r"allenai_checkpoints_barna_(\d+)\.json")
 
 for fname in os.listdir(results_dir):
     match = step_pattern.match(fname)

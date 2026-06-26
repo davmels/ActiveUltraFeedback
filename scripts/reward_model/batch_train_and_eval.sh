@@ -1,15 +1,14 @@
 #!/bin/bash
 
-# Update these paths to point to your own locations
-readonly PROJECT_BASE_DIR="${PROJECT_BASE_DIR:-/path/to/ActiveUltraFeedback}"
-readonly HF_HOME="${HF_HOME:-/path/to/hf_cache}"
+readonly PROJECT_BASE_DIR="/iopsstor/scratch/cscs/smarian/projects/ActiveUltraFeedback"
+readonly HF_HOME="/iopsstor/scratch/cscs/smarian/hf_cache"
 
 readonly ACCELERATE_CONFIG="${PROJECT_BASE_DIR}/configs/accelerate/multi_node.yaml"
 readonly PYTHON_FILE="${PROJECT_BASE_DIR}/activeuf/reward_model/training.py"
 readonly REWARD_CONFIG="${PROJECT_BASE_DIR}/configs/rm_training.yaml"
 
-readonly DATASETS_BASE_DIR="${DATASETS_BASE_DIR:-/path/to/datasets/preference_datasets}"
-readonly MODELS_BASE_DIR="${MODELS_BASE_DIR:-/path/to/models/reward_models}"
+readonly DATASETS_BASE_DIR="/iopsstor/scratch/cscs/smarian/datasets/7_preference_datasets"
+readonly MODELS_BASE_DIR="/iopsstor/scratch/cscs/smarian/models/reward_models"
 
 readonly RUNS=(
     # SKYWORK
@@ -134,7 +133,7 @@ for run_suffix in "${RUNS[@]}"; do
 #!/bin/bash
 #SBATCH --job-name=${JOB_NAME}
 #SBATCH -D .
-#SBATCH -A ${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH -A a-infra01-1
 #SBATCH --output=./logs/reward/${JOB_NAME}_%j.out
 #SBATCH --error=./logs/reward/${JOB_NAME}_%j.err
 #SBATCH --nodes=2                   # number of nodes
@@ -147,7 +146,7 @@ for run_suffix in "${RUNS[@]}"; do
 export GPUS_PER_NODE=4
 export HF_HOME="${HF_HOME}"
 
-export WANDB_ENTITY=${WANDB_ENTITY:-ActiveUF}
+export WANDB_ENTITY=ActiveUF
 export WANDB_PROJECT=RM_Training
 export ACCELERATE_DIR="/accelerate"
 

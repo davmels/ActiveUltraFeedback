@@ -6,7 +6,7 @@
 THIS_DIR="${SCRATCH}/ActiveUltraFeedback"
 
 # Default path to the evaluation script (assumes it is in the same folder as this script)
-RUN_ALPACA_EVAL_SH="${PROJECT_ROOT:-$(pwd)}/scripts/dpo/run_alpaca_eval.sh"
+RUN_ALPACA_EVAL_SH="$SCRATCH/ActiveUltraFeedback/scripts/dpo/run_alpaca_eval.sh"
 
 # ==============================================================================
 # ARGUMENT PARSING
@@ -132,7 +132,7 @@ for model_dir in "$DPO_TRAINED_DIR"/*; do
 
     # Define SLURM Command
     SBATCH_CMD="sbatch --job-name=\"${run_name}_alpaca_eval\" \
-    --account=${SLURM_ACCOUNT:-your-slurm-account} \
+    --account=a-infra01-1 \
     --output=\"${results_dir}_logs/log_%j.out\" \
     --error=\"${results_dir}_logs/log_%j.err\" \
     --nodes=1 \

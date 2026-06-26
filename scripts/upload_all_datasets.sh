@@ -11,14 +11,14 @@ METHODS=("DRTS" "DeltaUCB" "DTS" "InfoMax" "MaxMinLCB")
 
 # Define 8 prompt dataset directories (update these paths)
 PROMPT_DATASETS=(
-    "/path/to/datasets/tulu_3/final_datasets/dpo"
-    "/path/to/datasets/tulu_3/final_datasets/rm"
-    "/path/to/datasets/ultrafeedback/actives/dpo"
-    "/path/to/datasets/ultrafeedback/actives/rm"
-    "/path/to/datasets/skywork/actives/dpo"
-    "/path/to/datasets/skywork/actives/rm"
-    "/path/to/datasets/combined/actives/dpo"
-    "/path/to/datasets/combined/actives/rm"
+    "/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/tulu_3/final_datasets/dpo"
+    "/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/tulu_3/final_datasets/rm"
+    "/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/ultrafeedback/actives/dpo"
+    "/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/ultrafeedback/actives/rm"
+    "/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/skywork/actives/dpo"
+    "/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/skywork/actives/rm"
+    "/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/combined/actives/dpo"
+    "/iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/combined/actives/rm"
 )
 
 # Corresponding repo name prefixes for each prompt dataset

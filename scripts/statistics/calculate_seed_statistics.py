@@ -19,7 +19,7 @@ Usage:
     
 Example:
     python calculate_seed_statistics.py \
-        --results_dir /path/to/models/dpo_seeds \
+        --results_dir /iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/models/dpo_seeds2 \
         --unique_seeds \
         --output seed_stats.csv \
         --display

@@ -7,7 +7,7 @@ Adapted from https://github.com/allenai/reward-bench/blob/main/scripts/run_v2.py
 Example run command:
 python -m scripts.eval_judge_rewardbench \
     --model_path="Qwen/Qwen3-32B" \
-    --output_path /path/to/data/judge_rewardbench/Qwen3-32B \
+    --output_path /iopsstor/scratch/cscs/smarian/data/judge_rewardbench/Qwen3-32B \
     --max_tokens 24000 \
     --model_class vllm \
     --temperature 0.0 \
@@ -15,7 +15,7 @@ python -m scripts.eval_judge_rewardbench \
 
 python -m scripts.eval_judge_rewardbench \
     --model_path="meta-llama/Llama-3.3-70B-Instruct" \
-    --output_path /path/to/data/judge_rewardbench/Llama-3.3-70B-Instruct \
+    --output_path /iopsstor/scratch/cscs/smarian/data/judge_rewardbench/Llama-3.3-70B-Instruct \
     --max_tokens 24000 \
     --model_class vllm \
     --temperature 0.0 \

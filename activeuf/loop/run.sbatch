@@ -1,68 +1,72 @@
 #!/bin/bash
 
-#SBATCH --job-name=multinode_${acquisition_function}_${annotator_model}_loop
+#SBATCH --job-name=online_po
 #SBATCH -D .
-#SBATCH -A ${SLURM_ACCOUNT:-your-slurm-account}
-#SBATCH --output=./logs/loopman.out
-#SBATCH --error=./logs/loopman.err
-#SBATCH --nodes=4                   # number of nodes
-#SBATCH --ntasks-per-node=1         # number of MP tasks
-#SBATCH --gres=gpu:4                # number of GPUs per node
-#SBATCH --cpus-per-task=288         # number of cores per tasks
-#SBATCH --time=12:00:00             # maximum execution time (HH:MM:SS)
-#SBATCH --environment=activeuf      # using compressed docker image as an environment
+#SBATCH -A infra01
+#SBATCH --output=./logs/%j-%x.out
+#SBATCH --error=./logs/%j-%x.err
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --gres=gpu:4
+#SBATCH --cpus-per-task=288
+#SBATCH --time=12:00:00
+#SBATCH --reservation=SD-69241-apertus-1-5-0
+
+# NOTE: the batch script runs on the HOST (no #SBATCH --environment), so that
+# `srun` can load Slurm's host-side Slingshot plugin. The container is applied
+# per-task via `srun --environment=...` below (the CSCS-recommended pattern).
 
 export GPUS_PER_NODE=4
-export HF_HOME=${HF_HOME:-/path/to/hf_cache}
-######################
+export HF_HOME=$SCRATCH/huggingface
+export CUDA_VISIBLE_DEVICES=0,1,2,3
 
-echo $ACCELERATE_DIR
+# Use local rewarduq source (prepend to PYTHONPATH so it overrides system install)
+export PYTHONPATH="/iopsstor/scratch/cscs/dmelikidze/rewarduq/src:$PYTHONPATH"
 
-######################
-#### Set network #####
-######################
+# Defaults (override via environment variables)
+ACQ_FUNC="${ACQ_FUNC:?ERROR: ACQ_FUNC not set}"
+REWARD_MODEL="${REWARD_MODEL:-enn}"
+REPLAY_BUFFER="${REPLAY_BUFFER:-100}"
+EXP_DECAY_BASE="${EXP_DECAY_BASE:-0.9}"
+ACQ_BETA="${ACQ_BETA:-1.0}"
+RESUME_CHECKPOINT="${RESUME_CHECKPOINT:--}"
+OUTER_BATCH_SIZE="${OUTER_BATCH_SIZE:-2048}"
+PROMPT_K="${PROMPT_K:-256}"
+MIN_NON_TRUNCATED="${MIN_NON_TRUNCATED:-2}"
+DOMAIN_QUOTA="${DOMAIN_QUOTA:-false}"
+DEBUG="${DEBUG:-false}"
+
 head_node_ip=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
-######################
 
-export LAUNCHER="accelerate launch \
+RESUME_ARG=""
+if [[ "$RESUME_CHECKPOINT" != "-" ]]; then
+    RESUME_ARG="--resume_from_checkpoint=$RESUME_CHECKPOINT"
+fi
+
+DECAY_ARG=""
+if [[ "$REWARD_MODEL" == "enn" ]]; then
+    DECAY_ARG="--enn.regularization.exponential_decay_base=$EXP_DECAY_BASE"
+fi
+
+export CMD="accelerate launch \
     --config_file=configs/accelerate/multi_node.yaml \
     --num_processes $((SLURM_NNODES * GPUS_PER_NODE)) \
     --num_machines $SLURM_NNODES \
     --rdzv_backend c10d \
     --main_process_ip $head_node_ip \
     --main_process_port 29500 \
-    -m
-    "
+    -m activeuf.loop.run \
+    --config_path configs/loop.yaml \
+    --acquisition_function_type=$ACQ_FUNC \
+    --reward_model_type=$REWARD_MODEL \
+    --replay_buffer_factor=$REPLAY_BUFFER \
+    $DECAY_ARG \
+    --acquisition_function.beta=$ACQ_BETA \
+    --outer_loop_batch_size=$OUTER_BATCH_SIZE \
+    --prompt_selection_K=$PROMPT_K \
+    --min_non_truncated=$MIN_NON_TRUNCATED \
+    --domain_quota_selection=$DOMAIN_QUOTA \
+    --debug=$DEBUG \
+    $RESUME_ARG"
 
-export ACCELERATE_DIR="${ACCELERATE_DIR:-/accelerate}"
-export PYTHON_FILE="activeuf.active_learning_loop"
-export SCRIPT_ARGS=" \
-   --completions_dataset_path \${SCRATCH}/datasets/combined_annotations_${annotator_model}/ \
-   --output_path=\${DATA_DIR:-/path/to/datasets}/preference_new_${acquisition_function}_${annotator_model}_8/ \
-    --acquisition_function_type=${acquisition_function} \
-    --regularization_weight_decay_type=linear \
-    --exponential_decay_base=0.95 \
-    --regularization_towards_initial_weights=100 \
-   "
-        
-# This step is necessary because accelerate launch does not handle multiline arguments properly
-export CMD="\$LAUNCHER \$PYTHON_FILE \$SCRIPT_ARGS" 
-
-export DS_ACCELERATOR_CACHE_DIR="\${CACHE_DIR:-/tmp}/deepspeed_cache_\$SLURM_JOB_ID"
-export TRANSFORMERS_CACHE="\${CACHE_DIR:-/tmp}/hf_cache_\$SLURM_JOB_ID"
-mkdir -p "\$DS_ACCELERATOR_CACHE_DIR" "\$TRANSFORMERS_CACHE"
-
-START=\$(date +%s)
-
-cd \${PROJECT_ROOT:-$(pwd)}/
-export PYTHONPATH="\${PROJECT_ROOT:-$(pwd)}:\$PYTHONPATH"
-
-export CUDA_VISIBLE_DEVICES=0,1,2,3
-
-srun --chdir=\${PROJECT_ROOT:-$(pwd)} \$CMD
-
-END=\$(date +%s)
-DURATION=\$(( END - START ))
-
-echo "Job ended at: \$(date)"
-echo "Total execution time: \$DURATION seconds"
+srun --environment=activeuf_thesis bash -c "$CMD"

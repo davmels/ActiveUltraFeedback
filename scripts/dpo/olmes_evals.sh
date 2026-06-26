@@ -1,4 +1,5 @@
 #!/bin/bash
+# filepath: /iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/resources/olmes/reproducibility-scripts/tulu3_dev/do_everything.sh
 
 # ==============================================================================
 # CONFIGURATION
@@ -276,7 +277,7 @@ for model_dir in "${SUBSAMPLE_MODELS[@]}"; do
     "wandb_run_path": "ActiveUF/olmes-evals",
     "sbatch_time": "2:30:00",
     "batch_size": 1,
-    "eval_script_path": "${PROJECT_ROOT:-$(pwd)}/resources/olmes/installation/unattended-eval.sh",
+    "eval_script_path": "$SCRATCH/ActiveUltraFeedback/resources/olmes/installation/unattended-eval.sh",
     "tasks": $TASKS_JSON,
     "task_args": {
         "mmlu:mc::tulu": {

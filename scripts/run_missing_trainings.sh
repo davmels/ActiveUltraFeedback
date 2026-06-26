@@ -5,7 +5,7 @@ export DPO_CONFIG="./configs/dpo_training.yaml"
 export RM_CONFIG="./configs/rm_training.yaml"
 export ACCELERATE_CONFIG="./configs/accelerate/multi_node.yaml"
 
-export WANDB_ENTITY=${WANDB_ENTITY:-ActiveUF}
+export WANDB_ENTITY=ActiveUF
 export WANDB_DIR="${SCRATCH}/cache/wandb"
 export BASE_RM_OUTPUT_DIR="${SCRATCH}/models/reward_models"
 export BASE_DPO_OUTPUT_DIR="${SCRATCH}/models/dpo"
@@ -106,7 +106,7 @@ else
         # Submit RM training job
         echo "  Submitting RM training job..."
         sbatch --job-name="rm_${dir_name}" \
-               -A "${SLURM_ACCOUNT:-your-slurm-account}" \
+               -A "a-infra01-1" \
                --output="${rm_output_path}/training_%j.log" \
                --nodes=2 \
                --time=12:00:00 \
@@ -181,7 +181,7 @@ else
         # Submit DPO training job
         echo "  Submitting DPO training job..."
         sbatch --job-name="dpo_${dir_name}" \
-               -A "${SLURM_ACCOUNT:-your-slurm-account}" \
+               -A "a-infra01-1" \
                --output="${dpo_output_path}/training_%j.log" \
                --nodes=2 \
                --time=12:00:00 \

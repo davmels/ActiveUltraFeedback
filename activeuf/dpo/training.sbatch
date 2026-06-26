@@ -1,15 +1,16 @@
 #!/bin/bash
 
-#SBATCH -A ${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH -A infra01
 #SBATCH --job-name=dpo
-#SBATCH --output=logs/dpo/O-%x.%j
-#SBATCH --error=logs/dpo/E-%x.%j
-#SBATCH --nodes=2
+#SBATCH --output=logs/dpo/%j-%x.out
+#SBATCH --error=logs/dpo/%j-%x.err
+#SBATCH --nodes=8
+#SBATCH --reservation=SD-69241-apertus-1-5-0
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-node=4
 #SBATCH --cpus-per-task=288
 #SBATCH --time=12:00:00
-#SBATCH --exclude=nid[006845,006851,006854-006855,006752,006755,006787-006788,007095-007096,007098-007099,006824,006826,006845,006851,006854-006855,006752,006755,006787-006788,007095-007096,007098-007099,006708,006789-006791,007096,007098-007099,007104,006869,006875,007171,007173-007174,007182,007184,007201,007203,007189-007190,007234-007235,007087,007522,007539-007540,007562]
+#SBATCH --exclude=nid006076
 
 # --- ARGUMENT PARSING ---
 # 1. Dataset Path
@@ -23,12 +24,17 @@ fi
 
 # 2. Output Directory
 if [[ -n "$MyOutputDir" ]]; then
-    export BASE_OUTPUT_DIR="$MyOutputDir"
-    echo "Using Custom Base Output Dir: $BASE_OUTPUT_DIR"
+    export OUTPUT_DIR="$MyOutputDir"
+    echo "Using Custom Output Dir: $OUTPUT_DIR"
 else
-    export BASE_OUTPUT_DIR="${MODELS_DIR:-/path/to/models}/dpo"
-    echo "Using Default Base Output Dir: $BASE_OUTPUT_DIR"
+    export OUTPUT_DIR="$SCRATCH/models/dpo"
+    echo "Using Default Output Dir: $OUTPUT_DIR"
 fi
+
+# Append jobid + timestamp so each run gets a unique output dir (no overwrites).
+# Computed once on the host -> identical across all srun tasks/nodes.
+export OUTPUT_DIR="${OUTPUT_DIR}_${SLURM_JOB_ID}_$(date +%Y%m%d-%H%M%S)"
+echo "Unique Output Dir: $OUTPUT_DIR"
 
 # 3. Seed
 if [[ -n "$MySeed" ]]; then
@@ -39,12 +45,19 @@ else
     echo "Using Default Seed: $SEED"
 fi
 
+# 4. Debug mode (optional): set MyDebug=1 to trim the dataset to 100 samples
+DEBUG_ARG=""
+if [[ -n "$MyDebug" ]]; then
+    DEBUG_ARG="--debug_mode True"
+    echo "DEBUG MODE ON: trimming dataset to 100 samples"
+fi
+
 echo "Dataset Path: $DATASET_PATH"
 echo "Seed:         $SEED"
-echo "Base Output Dir: $BASE_OUTPUT_DIR"
+echo "Output Dir: $OUTPUT_DIR"
 # ------------------------
 
-BASE_CACHE_DIR="${CACHE_DIR:-/tmp/cache}"
+BASE_CACHE_DIR="$SCRATCH"
 export HF_HOME=$BASE_CACHE_DIR/hf_home
 export VLLM_CACHE_DIR=$BASE_CACHE_DIR/vllm_cache
 export WANDB_PROJECT=DPO
@@ -55,28 +68,55 @@ MAIN_PROCESS_IP=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
 MAIN_PROCESS_PORT=29500
 NUM_PROCESSES=$(expr $SLURM_NNODES \* $SLURM_GPUS_ON_NODE)
 
-CMD="accelerate launch \
-    --config_file=configs/accelerate/deepspeed2.yaml \
+# ------------------------
+# SETUP SYNC BARRIER
+# ------------------------
+INSTALL_FLAG="$SCRATCH/.install_flag_${SLURM_JOB_ID}"
+
+# We pack everything into a single multiline string.
+# Variables WITHOUT a backslash evaluate on the head node immediately.
+# Variables WITH a backslash (\$SLURM_NODEID) evaluate on the worker nodes during srun.
+CMD="
+if [ \"\$SLURM_NODEID\" -eq 0 ]; then
+    echo 'Node 0: Installing transformers version 4.57.1...'
+    pip install transformers==4.57.1 --upgrade
+    echo 'Node 0: Installation complete. Signaling other nodes.'
+    touch $INSTALL_FLAG
+else
+    echo \"Node \$SLURM_NODEID: Waiting for Node 0 to finish pip install...\"
+    while [ ! -f $INSTALL_FLAG ]; do
+        sleep 5
+    done
+fi
+
+accelerate launch \
+    --config_file=$SCRATCH/ActiveUltraFeedback/configs/accelerate/deepspeed2.yaml \
     --num_processes $NUM_PROCESSES \
     --num_machines $SLURM_NNODES \
     --machine_rank \$SLURM_NODEID \
     --main_process_ip $MAIN_PROCESS_IP \
     --main_process_port $MAIN_PROCESS_PORT \
     -m activeuf.dpo.training \
-    --config_path configs/dpo_training.yaml \
-    --slurm_job_id $SLURM_JOB_ID \
+    --config_path $SCRATCH/ActiveUltraFeedback/configs/dpo_training.yaml \
+    --output_dir $OUTPUT_DIR \
     --dataset_path $DATASET_PATH \
-    --base_output_dir $BASE_OUTPUT_DIR \
-    --seed $SEED"
+    --seed $SEED \
+    $DEBUG_ARG
+"
 
-echo $CMD
+echo "Executing command with sync barrier:"
+# Added quotes around "$CMD" so it prints with proper newlines in your log
+echo "$CMD"
 
 START=$(date +%s)
 
-srun --environment=activeuf_dev bash -c "$CMD"
+srun --environment=activeuf bash -c "$CMD"
 
 END=$(date +%s)
 DURATION=$(( END - START ))
+
+# Clean up the flag file after the job finishes
+rm -f "$INSTALL_FLAG"
 
 echo "Job ended at: $(date)"
 echo "Total execution time: $DURATION seconds"

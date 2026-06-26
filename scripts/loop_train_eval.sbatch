@@ -1,10 +1,14 @@
 #!/bin/bash
 #SBATCH --job-name=full_run
-#SBATCH -A ${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH -A a-infra01-1
 #SBATCH --output=./logs/loop/full_run_%j.out
 #SBATCH --time=12:00:00
 #SBATCH --partition=normal
 #SBATCH --nodes=4
+
+# TODO: STORE ENV VARS SCRIPT IN LOOP OUTPUT DIR
+# TODO: REFERENCE DPO AND RM RUNS IN LOOP RUN (CONFIG IN WANDB)
+
 
 echo -e "======================="
 echo -e "===== ECHO SCRIPT ====="
@@ -26,7 +30,7 @@ echo -e "========================\n\n\n"
 
 set -eo pipefail
 
-export WANDB_ENTITY=${WANDB_ENTITY:-ActiveUF}
+export WANDB_ENTITY=ActiveUF
 
 export OLMES_SCRIPT_PATH="${SCRATCH}/ActiveUltraFeedback/resources/olmes/installation/unattended-eval.sh"
 
@@ -219,17 +223,17 @@ mkdir -p "${DPO_OUTPUT_DIR}/results/alpaca_eval" \
 
 
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
-export PROJECT_ROOT_AT=${PROJECTS_DIR:-/path/to/projects}/ActiveUltraFeedback/resources/olmes
+export PROJECT_ROOT_AT=$SCRATCH/projects/ActiveUltraFeedback/resources/olmes
 export PROJECT_NAME=olmes
 export PACKAGE_NAME=oe_eval
 export SLURM_ONE_ENTRYPOINT_SCRIPT_PER_NODE=1
 export WANDB_API_KEY_FILE_AT=$HOME/.wandb-api-key
-export HF_HOME=${CACHE_DIR:-/tmp/cache}/hf_cache
+export HF_HOME=$SCRATCH/cache/hf_cache
 export SKIP_INSTALL_PROJECT=1
-export SHARED=${SHARED_DIR:-/path/to/shared/artifacts}
+export SHARED=/iopsstor/scratch/cscs/smoalla/projects/swiss-alignment/artifacts/shared
 export OMP_NUM_THREADS=1
 export TOKENIZERS_PARALLELISM=false
-export CONTAINER_IMAGES=${CONTAINER_IMAGES:-/path/to/container-images}
+export CONTAINER_IMAGES=/capstor/store/cscs/swissai/infra01/container-images
 unset SSL_CERT_FILE
 
 CONTAINER_ARGS=" \
@@ -237,8 +241,8 @@ CONTAINER_ARGS=" \
   --environment="${PROJECT_ROOT_AT}/installation/edf.toml" \
   --container-mounts=\
 $PROJECT_ROOT_AT,\
-${DATA_DIR:-/path/to/data},\
-${DPR_DIR:-/path/to/dpr},\
+$SCRATCH,\
+/iopsstor/scratch/cscs/smoalla/projects/dpr/,\
 $SHARED,\
 $WANDB_API_KEY_FILE_AT,\
 $HOME/.gitconfig,\

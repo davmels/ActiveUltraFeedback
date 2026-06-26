@@ -64,6 +64,16 @@ MODEL_APIS = {
 }
 
 
+def _resolve_dataclass_type(type_hint):
+    """Extract the dataclass type from a union like `X | None`, or return the type as-is."""
+    import types
+    if isinstance(type_hint, types.UnionType):
+        for arg in type_hint.__args__:
+            if is_dataclass(arg):
+                return arg
+    return type_hint
+
+
 def ensure_dataclass(cls, d):
     if not is_dataclass(cls):
         return d  # primitive type, leave as is
@@ -72,8 +82,9 @@ def ensure_dataclass(cls, d):
         if f.name not in d:
             continue
         value = d[f.name]
-        if is_dataclass(f.type) and isinstance(value, dict):
-            kwargs[f.name] = ensure_dataclass(f.type, value)
+        resolved = _resolve_dataclass_type(f.type)
+        if is_dataclass(resolved) and isinstance(value, dict):
+            kwargs[f.name] = ensure_dataclass(resolved, value)
         else:
             kwargs[f.name] = value
     return cls(**kwargs)

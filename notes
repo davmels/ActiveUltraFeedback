@@ -1,0 +1,32 @@
+what is the right UQ model, 
+fix the model.
+and tune beta so that coparison is fair. 
+
+evaluations on the UQ models according to the paper. okay save the models. 
+
+10/05/2026 01:03
+bash launcher_graceful.sh --base_dir /iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/dolci/active_orig/experiments_blh_dpo --config_file ./configs/apertus/tasks_thesis.txt --table_metrics ./configs/apertus/tasks_thesis_main_table.txt --wandb_entity ActiveUF_Plus --wandb_project evals
+
+bash launcher_graceful.sh --base_dir /iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/dolci/meeting_12_5_2026/partitions/blh_dpo/ --config_file ./configs/apertus/tasks_thesis.txt --table_metrics ./configs/apertus/tasks_thesis_main_table.txt --wandb_entity ActiveUF_Plus --wandb_project evals --group_size 6 --logs_root /iopsstor/scratch/cscs/dmelikidze/eval_logs_start/ActiveUF_Plus/evals
+
+python make_html_table.py   --metrics-file /iopsstor/scratch/cscs/dmelikidze/evals-post-train/configs/apertus/tasks_thesis_main_table.txt   --models-file /iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/dolci/meeting_12_5_2026/models.txt --output eval_table.html --no-baselines --entity ActiveUF_Plus --project evals
+
+17/05/2026 12:20
+bash launcher_graceful.sh --base_dir /iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/dolci/meeting_19_5_2026/datasets/dpo --config_file ./configs/apertus/tasks_thesis.txt --table_metrics ./configs/apertus/tasks_thesis_main_table.txt --wandb_entity ActiveUF_Plus --wandb_project evals --group_size 6 --logs_root /iopsstor/scratch/cscs/dmelikidze/eval_logs_start/ActiveUF_Plus/evals
+
+15/06/2026 13:43
+bash launcher_graceful.sh --base_dir /iopsstor/scratch/cscs/dmelikidze/ActiveUltraFeedback/datasets/meeting_16_09_2026/active_dpo6 --config_file ./configs/apertus/tasks_thesis.txt --table_metrics ./configs/apertus/tasks_thesis_main_table.txt --wandb_entity ActiveUF_Plus --wandb_project evals --group_size 1 --logs_root /iopsstor/scratch/cscs/dmelikidze/eval_logs_start/ActiveUF_Plus/evals
+
+
+python make_html_table.py   --metrics-file /iopsstor/scratch/cscs/dmelikidze/evals-post-train/configs/apertus/tasks_thesis_main_table.txt   --models "activedpo_C0.1_20260615-033527-623" "activedpo_C0.25_20260615-033527-430" "activedpo_C0.5_20260615-033527-015" --output eval_table.html --no-sft-baseline --entity ActiveUF_Plus --project evals --no-split
+
+python make_html_table.py   --metrics-file /iopsstor/scratch/cscs/dmelikidze/evals-post-train/configs/apertus/tasks_thesis_main_table.txt   --models "activedpo_C1.0_20260615-162755-708" "activedpo_C2.5_20260615-163334-478" "activedpo_C5.0_20260615-163334-439" --output eval_table.html --no-sft-baseline --entity ActiveUF_Plus --project evals --no-split
+
+python make_html_table.py   --metrics-file /iopsstor/scratch/cscs/dmelikidze/evals-post-train/configs/apertus/tasks_thesis_main_table.txt   --models "maxmin_b0.05_nonorm_2547168_20260616-182052" "activedpo_C1_20260616-180059-622" "activedpo_C2.5_20260616-180059-419" "activedpo_C5_20260616-180059-889" --rename "maxmin_b0.05_nonorm_2547168_20260616-182052=baseline DPO" "activedpo_C1_20260616-180059-622=activeDPO-1" "activedpo_C2.5_20260616-180059-419=activeDPO-2.5" "activedpo_C5_20260616-180059-889=activeDPO-5.0" --output eval_table.html --no-sft-baseline --entity ActiveUF_Plus --project evals --no-split
+
+python make_html_table.py   --metrics-file /iopsstor/scratch/cscs/dmelikidze/evals-post-train/configs/apertus/tasks_thesis_main_table.txt   --models "maxmin_b0.05_nonorm_2547168_20260616-182052" "activedpo_C1_20260616-180059-622" "activedpo_C2.5_20260616-180059-419" "activedpo_C5_20260616-180059-889" "activedpo_C1e-9_20260617-192202-308" "activedpo_C1e9_20260617-232933-676" "activedpo_C10_20260617-191920-962" --rename "maxmin_b0.05_nonorm_2547168_20260616-182052=baseline DPO" "activedpo_C1_20260616-180059-622=activeDPO-1" "activedpo_C2.5_20260616-180059-419=activeDPO-2.5" "activedpo_C5_20260616-180059-889=activeDPO-5.0" "activedpo_C1e-9_20260617-192202-308=ActiveDPO-1e-9" "activedpo_C1e9_20260617-232933-676=ActiveDPO-1e9" "activedpo_C10_20260617-191920-962=ActiveDPO-10" --output eval_table.html --no-sft-baseline --entity ActiveUF_Plus --project evals --no-split
+
+python make_html_table.py   --metrics-file /iopsstor/scratch/cscs/dmelikidze/evals-post-train/configs/apertus/tasks_thesis_main_table.txt   --models "maxmin_b0.05_nonorm_2547168_20260616-182052" "activedpo_C1e9_20260624-034556-050" "activedpo_C10_20260624-044041-984" "maxmin_refiltered_2602310_20260623-175445" --rename "maxmin_b0.05_nonorm_2547168_20260616-182052=baseline DPO" "activedpo_C10_20260624-044041-984=threshold10" "activedpo_C1e9_20260624-034556-050=Replication" "maxmin_refiltered_2602310_20260623-175445=new_run" --output eval_table.html --no-sft-baseline --entity ActiveUF_Plus --project evals --no-split
+
+activedpo_C1e9_20260624-034556-050
+activedpo_C10_20260624-044041-984

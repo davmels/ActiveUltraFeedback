@@ -27,14 +27,14 @@ if [ "$#" -lt 1 ]; then
     echo "Arguments:"
     echo "  dataset_path     Path to the dataset directory"
     echo "  base_output_dir  (Optional) Base output directory for models"
-    echo "                   Default: \${MODELS_DIR:-/path/to/models}/dpo_stability"
+    echo "                   Default: \$SCRATCH/models/dpo_stability"
     echo ""
     echo "This script launches 5 DPO jobs with seeds: ${SEEDS[*]}"
     exit 1
 fi
 
 DATASET_PATH="${1%/}"  # Remove trailing slash if present
-BASE_OUTPUT_DIR="${2:-${MODELS_DIR:-/path/to/models}/dpo_stability}"
+BASE_OUTPUT_DIR="${2:-$SCRATCH/models/dpo_stability}"
 
 # Note: We don't check if DATASET_PATH exists because it can be a remote HuggingFace dataset
 

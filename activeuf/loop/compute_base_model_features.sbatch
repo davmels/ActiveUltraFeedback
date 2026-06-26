@@ -2,11 +2,11 @@
 
 #SBATCH --job-name=compute_base_model_features
 #SBATCH -D .
-#SBATCH -A ${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH -A infra01
 #SBATCH --output=./logs/O-%x.%j
 #SBATCH --error=./logs/E-%x.%j
-#SBATCH --time=10:00:00
-#SBATCH --environment=activeuf_dev
+#SBATCH --time=12:00:00
+#SBATCH --environment=activeuf_thesis
 #SBATCH --partition=normal
 
 python -m pip install -e resources/rewarduq

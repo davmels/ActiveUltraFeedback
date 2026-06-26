@@ -6,7 +6,7 @@ if [ $# -lt 1 ]; then
 fi
 
 MODELS_LIST_FILE="$1"
-RESULTS_DIR="${RESULTS_DIR:-/path/to/models/reward_models/results}"
+RESULTS_DIR="/iopsstor/scratch/cscs/dmelikidze/models/reward_models/results/"
 
 # Create results directory if it doesn't exist
 mkdir -p "$RESULTS_DIR"
@@ -37,5 +37,5 @@ for MODEL in "${MODELS[@]}"; do
     fi
 
     echo "[$count/$total] Running reward bench for model: $MODEL"
-    bash ${PROJECT_ROOT:-$(pwd)}/activeuf/reward_model/run_reward_bench_2.sh "$MODEL"
+    bash $SCRATCH/ActiveUltraFeedback/activeuf/reward_model/run_reward_bench_2.sh "$MODEL"
 done

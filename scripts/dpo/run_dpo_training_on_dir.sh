@@ -94,7 +94,7 @@ for dataset_path in "${DATASET_LIST[@]}"; do
         slurm_job_name="DPO-${dataset_name}"
 
         # 1. ROBUSTNESS CHECK: FILES
-        if find "$BASE_OUTPUT_DIR" -maxdepth 1 -type d -name "*-$dataset_name" 2>/dev/null | grep -q .; then
+        if [ -d "$BASE_OUTPUT_DIR/$dataset_name" ]; then
             echo "[SKIP] Output for '$dataset_name' already exists."
             continue
         fi
@@ -114,7 +114,7 @@ for dataset_path in "${DATASET_LIST[@]}"; do
         
         sbatch \
             --job-name="$slurm_job_name" \
-            --export=ALL,MyDatasetPath="$dataset_path",MyOutputDir="$BASE_OUTPUT_DIR",MySeed="$SEED" \
+            --export=ALL,MyDatasetPath="$dataset_path",MyOutputDir="$BASE_OUTPUT_DIR/$dataset_name",MySeed="$SEED" \
             "$TEMPLATE_FILE"
 
         sleep 0.5

@@ -87,7 +87,7 @@ launch_model_eval() {
                        --rm_output_dir ${RM_MODEL_BASE_DIR}/${run_id} \
                        --dpo_output_dir ${DPO_MODEL_BASE_DIR}/${run_id} \
                        --project loop \
-                       --entity ${WANDB_ENTITY:-ActiveUF}"
+                       --entity ActiveUF"
 
     if [[ "$model_type_label" == "IPO" ]]; then
         WANDB_UPDATE_ARGS="${WANDB_UPDATE_ARGS} --ipo_output_dir ${model_dir}"
@@ -106,7 +106,7 @@ launch_model_eval() {
     else
         echo "    Submitting evaluation job..."
         sbatch --job-name="${run_id}_${benchmark}" \
-               --account="${SLURM_ACCOUNT:-your-slurm-account}" \
+               --account="a-infra01-1" \
                --output="${model_dir}/results/${benchmark}/eval_%j.log" \
                --nodes=1 \
                --ntasks=1 \
@@ -115,17 +115,17 @@ launch_model_eval() {
                --partition=normal \
                --wrap="
                 export VLLM_WORKER_MULTIPROC_METHOD=spawn
-                export PROJECT_ROOT_AT=${PROJECTS_DIR:-/path/to/projects}/ActiveUltraFeedback/resources/olmes
+                export PROJECT_ROOT_AT=$SCRATCH/projects/ActiveUltraFeedback/resources/olmes
                 export PROJECT_NAME=olmes
                 export PACKAGE_NAME=oe_eval
                 export SLURM_ONE_ENTRYPOINT_SCRIPT_PER_NODE=1
                 export WANDB_API_KEY_FILE_AT=$HOME/.wandb-api-key
-                export HF_HOME=${CACHE_DIR:-/tmp/cache}/hf_cache
+                export HF_HOME=$SCRATCH/cache/hf_cache
                 export SKIP_INSTALL_PROJECT=1
-                export SHARED=${SHARED_DIR:-/path/to/shared/artifacts}
+                export SHARED=/iopsstor/scratch/cscs/smoalla/projects/swiss-alignment/artifacts/shared
                 export OMP_NUM_THREADS=1
                 export TOKENIZERS_PARALLELISM=false
-                export CONTAINER_IMAGES=${CONTAINER_IMAGES:-/path/to/container-images}
+                export CONTAINER_IMAGES=/capstor/store/cscs/swissai/infra01/container-images
                 unset SSL_CERT_FILE
                 export VLLM_DISABLE_COMPILE_CACHE=1
                 
@@ -135,7 +135,7 @@ launch_model_eval() {
                   --container-mounts=\
 \$PROJECT_ROOT_AT,\
 ${SCRATCH},\
-${DPR_DIR:-/path/to/dpr},\
+/iopsstor/scratch/cscs/smoalla/projects/dpr/,\
 \$SHARED,\
 \$WANDB_API_KEY_FILE_AT,\
 \$HOME/.gitconfig,\
@@ -179,7 +179,7 @@ launch_alpaca_eval() {
                        --rm_output_dir ${RM_MODEL_BASE_DIR}/${run_id} \
                        --dpo_output_dir ${DPO_MODEL_BASE_DIR}/${run_id} \
                        --project loop \
-                       --entity ${WANDB_ENTITY:-ActiveUF}"
+                       --entity ActiveUF"
 
     if [[ "$model_type_label" == "IPO" ]]; then
         WANDB_UPDATE_ARGS="${WANDB_UPDATE_ARGS} --ipo_output_dir ${model_dir}"
@@ -196,7 +196,7 @@ launch_alpaca_eval() {
     else
         echo "    Submitting Alpaca Eval job..."
         sbatch --job-name="${run_id}_alpaca_eval" \
-               --account="${SLURM_ACCOUNT:-your-slurm-account}" \
+               --account="a-infra01-1" \
                --output="${results_dir}_log/log_%j.out" \
                --error="${results_dir}_log/log_%j.err" \
                --nodes=1 \
@@ -366,7 +366,7 @@ if [[ ${#missing_rm_evals[@]} -gt 0 ]]; then
             echo "    [DRY RUN] Would submit sbatch job for: rm_eval_${dir_name}"
         else
             sbatch --job-name="rm_eval_${dir_name}" \
-                   --account="${SLURM_ACCOUNT:-your-slurm-account}" \
+                   --account="a-infra01-1" \
                    --output="${rm_path}/eval_%j.log" \
                    --nodes=1 \
                    --ntasks=1 \
@@ -384,7 +384,7 @@ if [[ ${#missing_rm_evals[@]} -gt 0 ]]; then
                            --rm_output_dir ${rm_path} \
                            --dpo_output_dir ${DPO_MODEL_BASE_DIR}/${dir_name} \
                            --project loop \
-                           --entity ${WANDB_ENTITY:-ActiveUF}
+                           --entity ActiveUF
                    "
             echo "  Job submitted for $dir_name"
         fi

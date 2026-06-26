@@ -17,7 +17,7 @@ fi
 # 2. Configuration
 PYTHON_UPDATER_SCRIPT="scripts/update_wandb_run.py"
 WANDB_PROJECT="loop"
-WANDB_ENTITY="${WANDB_ENTITY:-ActiveUF}"
+WANDB_ENTITY="ActiveUF"
 
 # 3. Resolve Paths
 if [ -z "$SCRATCH" ]; then
@@ -25,10 +25,10 @@ if [ -z "$SCRATCH" ]; then
     exit 1
 fi
 
-RM_BASE_DIR="${MODELS_DIR:-/path/to/models}/reward_models/$SWEEP_ID"
-DPO_BASE_DIR="${MODELS_DIR:-/path/to/models}/dpo/$SWEEP_ID"
-IPO_BASE_DIR="${MODELS_DIR:-/path/to/models}/cpo_ipo/$SWEEP_ID"
-SIMPO_BASE_DIR="${MODELS_DIR:-/path/to/models}/cpo_simpo/$SWEEP_ID"
+RM_BASE_DIR="$SCRATCH/models/reward_models/$SWEEP_ID"
+DPO_BASE_DIR="$SCRATCH/models/dpo/$SWEEP_ID"
+IPO_BASE_DIR="$SCRATCH/models/cpo_ipo/$SWEEP_ID"
+SIMPO_BASE_DIR="$SCRATCH/models/cpo_simpo/$SWEEP_ID"
 
 # 4. Check Existence of Base Directories (Informational only, do not exit)
 echo "=========================================================="

@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=dist-hw-test
-#SBATCH --account=${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH --account=a-infra01-1
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-node=1
 #SBATCH --gres=gpu:4

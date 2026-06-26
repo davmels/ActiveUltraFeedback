@@ -1,6 +1,6 @@
 #!/bin/bash
 # shellcheck disable=SC2206
-#SBATCH --account=${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH --account=a-infra01-1
 #SBATCH --exclusive
 #SBATCH --cpus-per-task=288
 #SBATCH --nodes=2

@@ -9,6 +9,7 @@ from activeuf.acquisition_function.rucb import RelativeUpperConfidenceBound
 from activeuf.acquisition_function.drts import DoubleReverseThompsonSampling
 from activeuf.acquisition_function.deltaucb import DeltaUCB
 from activeuf.acquisition_function.deltaquantile import DeltaQuantile
+from activeuf.acquisition_function.oracle_maxmin import OracleMaxMin
 
 __all__ = [
     "RandomAcquisitionFunction",
@@ -22,6 +23,7 @@ __all__ = [
     "DoubleReverseThompsonSampling",
     "DeltaUCB",
     "DeltaQuantile",
+    "OracleMaxMin",
 ]
 
 _acquisition_function_map = {
@@ -36,6 +38,7 @@ _acquisition_function_map = {
     "drts": DoubleReverseThompsonSampling,
     "deltaucb": DeltaUCB,
     "deltaquantile": DeltaQuantile,
+    "oracle_maxmin": OracleMaxMin,
 }
 
 

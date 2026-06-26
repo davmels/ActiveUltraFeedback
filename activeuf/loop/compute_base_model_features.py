@@ -110,35 +110,53 @@ if __name__ == "__main__":
     _dataset = dataset.select(range(start_idx, end_idx))
 
     print("Pretokenizing everything")
-    _flattened_inputs = []
-    for x in tqdm(_dataset, disable=not accelerator.is_main_process):
-        messages = [
-            [
-                {"role": "user", "content": x["prompt"]},
-                {"role": "assistant", "content": completion["response_text"]},
+    # rust tokenizer parallelism would conflict with the process pool below
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
+    # all ranks run this at once, so split the CPUs fairly to avoid oversubscription
+    n_tokenize_proc = max(
+        1, len(os.sched_getaffinity(0)) // accelerator.num_processes
+    )
+
+    def tokenize_prompts(batch):
+        temp_ids, all_input_ids, all_attention_mask, lengths = [], [], [], []
+        for prompt_idx, prompt, completions in zip(
+            batch["prompt_idx"], batch["prompt"], batch["completions"]
+        ):
+            messages = [
+                prompt + [{"role": "assistant", "content": c["response_text"]}]
+                for c in completions
             ]
-            for completion in x["completions"]
-        ]
-        messages_str = tokenizer.apply_chat_template(messages, tokenize=False)
-
-        inputs = tokenizer(
-            messages_str,
-            padding="do_not_pad",
-            truncation=True,
-            max_length=args["max_length"],
-            return_tensors=None,
-        )
-
-        for completion_idx in range(n_response_texts_per_prompt):
-            _flattened_inputs.append(
-                {
-                    "temp_id": (x["prompt_idx"], completion_idx),
-                    "input_ids": inputs["input_ids"][completion_idx],
-                    "attention_mask": inputs["attention_mask"][completion_idx],
-                }
+            messages_str = tokenizer.apply_chat_template(messages, tokenize=False)
+            inputs = tokenizer(
+                messages_str,
+                padding="do_not_pad",
+                truncation=True,
+                max_length=args["max_length"],
+                return_tensors=None,
             )
-    _flattened_inputs.sort(key=lambda x: -len(x["input_ids"]))
-    _flattened_inputs = Dataset.from_list(_flattened_inputs)
+            for completion_idx in range(len(completions)):
+                ids = inputs["input_ids"][completion_idx]
+                temp_ids.append((prompt_idx, completion_idx))
+                all_input_ids.append(ids)
+                all_attention_mask.append(inputs["attention_mask"][completion_idx])
+                lengths.append(len(ids))
+        return {
+            "temp_id": temp_ids,
+            "input_ids": all_input_ids,
+            "attention_mask": all_attention_mask,
+            "length": lengths,
+        }
+
+    _flattened_inputs = _dataset.map(
+        tokenize_prompts,
+        batched=True,
+        num_proc=n_tokenize_proc,
+        remove_columns=_dataset.column_names,
+        desc="Pretokenizing",
+    )
+    # longest sequences first -> efficient dynamic padding per batch
+    _flattened_inputs = _flattened_inputs.sort("length", reverse=True)
+    _flattened_inputs = _flattened_inputs.remove_columns("length")
 
     dataloader = DataLoader(
         _flattened_inputs,
@@ -180,7 +198,15 @@ if __name__ == "__main__":
 
     start = time.time()
     n_batches_processed = 0
-    for batch_idx, (temp_ids, inputs) in enumerate(dataloader, 1):
+    # the loop below still iterates (and skips) already-done batches, so let the
+    # bar tick through them from 0 rather than passing initial= (would double-count)
+    progress = tqdm(
+        dataloader,
+        total=n_batches,
+        desc=f"Featurizing (rank {accelerator.process_index})",
+        disable=not accelerator.is_main_process,
+    )
+    for batch_idx, (temp_ids, inputs) in enumerate(progress, 1):
         # Skip already-completed batches
         if batch_idx <= resume_from_batch:
             continue

@@ -7,11 +7,11 @@ set -euo pipefail
 #
 # The script only builds run names and submits jobs with --run_name set to the folder name.
 
-BASE_DATASETS_DIR="${DATA_DIR:-/path/to/datasets}/active/centered_cosine_correct/"
-DPO_CONFIG_PATH="configs/dpo_training.yaml"
-BASE_CACHE_DIR="${CACHE_DIR:-/tmp/cache}"
-MULTI_NODE_CFG="configs/accelerate/multi_node.yaml"
-BASE_OUTPUT_DIR="${MODELS_DIR:-/path/to/models}/dpo/active/centered_cosine_correct/"
+BASE_DATASETS_DIR="$SCRATCH/datasets/active/centered_cosine_correct/"
+DPO_CONFIG_PATH="$SCRATCH/ActiveUltraFeedback/configs/dpo_training.yaml"
+BASE_CACHE_DIR="$SCRATCH"
+MULTI_NODE_CFG="$SCRATCH/ActiveUltraFeedback/configs/accelerate/multi_node.yaml"
+BASE_OUTPUT_DIR="$SCRATCH/models/dpo/active/centered_cosine_correct/"
 
 ACCELERATE_LAUNCH_BASE="accelerate launch --config_file=${MULTI_NODE_CFG} -m activeuf.dpo.training"
 
@@ -48,7 +48,7 @@ for DATASET_PATH in "${SUBSAMPLE_DATASETS[@]}"; do
   JOB_NAME="${JOB_NAME:0:80}"
 
   # echo "Preparing job for dataset: $DATASET_PATH -> run_name: $RUN_NAME"
-  # OUTPUT_DIR="${MODELS_DIR:-/path/to/models}/dpo/active/centered"
+  # OUTPUT_DIR="$SCRATCH/models/dpo/active/centered"
   # if [ -d "$OUTPUT_DIR/$RUN_NAME" ]; then
   #   echo "Skipping dataset $DATASET_PATH (run_name: $RUN_NAME) - already processed (found in $OUTPUT_DIR)"
   #   continue
@@ -74,7 +74,7 @@ for DATASET_PATH in "${SUBSAMPLE_DATASETS[@]}"; do
   # exit 0
   sbatch <<EOF
 #!/bin/bash
-#SBATCH -A ${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH -A a-infra01-1
 #SBATCH --job-name=${JOB_NAME}
 #SBATCH --output=logs/dpo/$(basename "${BASE_OUTPUT_DIR}")/O-${JOB_NAME}.%j
 #SBATCH --error=logs/dpo/$(basename "${BASE_OUTPUT_DIR}")/E-${JOB_NAME}.%j
@@ -112,7 +112,7 @@ CMD="accelerate launch \\
     
 echo \$CMD
 START=\$(date +%s)
-srun --chdir=\${PROJECT_ROOT:-$(pwd)} --environment=activeuf_dev bash -lc "\$CMD"
+srun --chdir=\$SCRATCH/ActiveUltraFeedback --environment=activeuf_dev bash -lc "\$CMD"
 END=\$(date +%s)
 DURATION=\$(( END - START ))
 echo "Job ended at: \$(date) (duration=\$DURATION s)"

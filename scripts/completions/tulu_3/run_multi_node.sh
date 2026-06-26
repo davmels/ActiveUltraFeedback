@@ -1,7 +1,7 @@
 #!/bin/bash
 
-CACHE_DIR="${CACHE_DIR:-/tmp/cache}"
-DATASETS_DIR="${DATA_DIR:-/path/to/datasets}"
+CACHE_DIR="$SCRATCH/cache"
+DATASETS_DIR="$SCRATCH/datasets"
 
 # Optional: Set this to a job ID to make all submitted jobs wait for it to finish
 # Example: WAIT_FOR_JOB=1234567
@@ -107,7 +107,7 @@ for config in "${CONFIGS[@]}"; do
     sbatch $DEPENDENCY_ARG <<EOF
 #!/bin/bash
 # shellcheck disable=SC2206
-#SBATCH --account=${SLURM_ACCOUNT:-your-slurm-account}
+#SBATCH --account=a-infra01-1
 #SBATCH --exclusive
 #SBATCH --cpus-per-task=288
 #SBATCH --nodes=$NODES

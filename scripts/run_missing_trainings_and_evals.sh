@@ -5,7 +5,7 @@ export DPO_CONFIG="./configs/dpo_training.yaml"
 export RM_CONFIG="./configs/rm_training.yaml"
 export ACCELERATE_CONFIG="./configs/accelerate/multi_node.yaml"
 
-export WANDB_ENTITY=${WANDB_ENTITY:-ActiveUF}
+export WANDB_ENTITY=ActiveUF
 export WANDB_DIR="${SCRATCH}/cache/wandb"
 export BASE_RM_OUTPUT_DIR="${SCRATCH}/models/reward_models"
 export BASE_DPO_OUTPUT_DIR="${SCRATCH}/models/dpo"
@@ -106,7 +106,7 @@ else
         # Submit RM training job
         echo "  Submitting RM training job..."
         sbatch --job-name="rm_${dir_name}" \
-               -A "${SLURM_ACCOUNT:-your-slurm-account}" \
+               -A "a-infra01-1" \
                --output="${rm_output_path}/training_%j.log" \
                --nodes=2 \
                --time=12:00:00 \
@@ -185,7 +185,7 @@ else
         # Submit DPO training job
         echo "  Submitting DPO training job..."
         sbatch --job-name="dpo_${dir_name}" \
-               -A "${SLURM_ACCOUNT:-your-slurm-account}" \
+               -A "a-infra01-1" \
                --output="${dpo_output_path}/training_%j.log" \
                --nodes=2 \
                --time=12:00:00 \
@@ -223,16 +223,16 @@ else
                    
                    # Setup DPO evaluation environment
                    export VLLM_WORKER_MULTIPROC_METHOD=spawn
-                   export PROJECT_ROOT_AT=\${PROJECTS_DIR:-/path/to/projects}/ActiveUltraFeedback/resources/olmes
+                   export PROJECT_ROOT_AT=\$SCRATCH/projects/ActiveUltraFeedback/resources/olmes
                    export PROJECT_NAME=olmes
                    export PACKAGE_NAME=oe_eval
                    export SLURM_ONE_ENTRYPOINT_SCRIPT_PER_NODE=1
                    export WANDB_API_KEY_FILE_AT=\$HOME/.wandb-api-key
                    export SKIP_INSTALL_PROJECT=1
-                   export SHARED=${SHARED_DIR:-/path/to/shared/artifacts}
+                   export SHARED=/iopsstor/scratch/cscs/smoalla/projects/swiss-alignment/artifacts/shared
                    export OMP_NUM_THREADS=1
                    export TOKENIZERS_PARALLELISM=false
-                   export CONTAINER_IMAGES=${CONTAINER_IMAGES:-/path/to/container-images}
+                   export CONTAINER_IMAGES=/capstor/store/cscs/swissai/infra01/container-images
                    unset SSL_CERT_FILE
                    
                    # Create results directories
@@ -243,7 +243,7 @@ else
                    
                    CONTAINER_ARGS=\"--container-image=\$CONTAINER_IMAGES/infra01+ismayilz+olmes+arm64-cuda-root-latest.sqsh \
                      --environment=\$PROJECT_ROOT_AT/installation/edf.toml \
-                     --container-mounts=\$PROJECT_ROOT_AT,\${DATA_DIR:-/path/to/data},${DPR_DIR:-/path/to/dpr},\$SHARED,\$WANDB_API_KEY_FILE_AT,\$HOME/.gitconfig,\$HOME/.bashrc,\$HOME/.ssh \
+                     --container-mounts=\$PROJECT_ROOT_AT,\$SCRATCH,/iopsstor/scratch/cscs/smoalla/projects/dpr/,\$SHARED,\$WANDB_API_KEY_FILE_AT,\$HOME/.gitconfig,\$HOME/.bashrc,\$HOME/.ssh \
                      --container-workdir=\$PROJECT_ROOT_AT \
                      --no-container-mount-home \
                      --no-container-remap-root \
